@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Heart,
+  ChevronDown,
   MessageCircle,
   Sparkles,
   Lightbulb,
@@ -12,10 +13,11 @@ import {
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { jsPDF } from "jspdf";
 
-import { fetchMessageCraft, createCheckoutSession } from "../lib/api";
-import { buildSummary, createEntry, getConversationEntries, addConversationEntry } from "../lib/conversation";
+import { createConversationEntry, fetchConversations, fetchMessageCraft } from "../lib/api";
+import { buildSummary } from "../lib/conversation";
 import { checkFeatureAccess, getToneLimit, TIERS } from "../lib/tiers";
 import type {
+  ConversationEntry,
   MessageCraftResponse,
   Preset,
   QuickActionKey,
@@ -107,7 +109,7 @@ const POWER_LABELS: Record<string, string> = {
 };
 
 export default function Home() {
-  const { tier, usage, remaining, canRun, recordUsage } = useTierState();
+  const { tier, setTier, usage, remaining, canRun, updateUsage } = useTierState();
   const [toneValue, setToneValue] = useState(50);
   const [input, setInput] = useState("");
   const [response, setResponse] = useState<MessageCraftResponse | null>(null);
@@ -117,7 +119,7 @@ export default function Home() {
   const [activeScenario, setActiveScenario] = useState<ScenarioKey | null>(null);
   const [activeQuickAction, setActiveQuickAction] = useState<QuickActionKey | null>(null);
   const [activeTactical, setActiveTactical] = useState<TacticalKey | null>(null);
-  const [audienceStyle, setAudienceStyle] = useState("Neutral");
+  const [audienceStyle, setAudienceStyle] = useState("Gen Z");
   const [userGoal, setUserGoal] = useState(goalOptions[0]);
   const [contactName, setContactName] = useState("General");
   const [batchMode, setBatchMode] = useState(false);
@@ -131,6 +133,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<UpgradeReason | null>(null);
   const [billingCycle] = useState<"weekly" | "monthly">("weekly");
+  const [conversationEntries, setConversationEntries] = useState<ConversationEntry[]>([]);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
 
   const toneLimit = getToneLimit(tier);
   const allowFullAnalysis = checkFeatureAccess("full_analysis", tier);
@@ -154,19 +158,79 @@ export default function Home() {
     return "";
   }, [tier, usage.count]);
 
-  const conversationEntries = useMemo(
-    () => getConversationEntries(contactName),
-    [contactName, response],
-  );
+  const mapConversationEntry = (entry: {
+    id: string;
+    contact: string;
+    tone_key: string;
+    tone_scores: MessageCraftResponse["analysis"]["tone_scores"];
+    impact_prediction: number;
+    clarity_before: number;
+    clarity_after: number;
+    created_at: string;
+  }): ConversationEntry => {
+    const timestamp = Date.parse(entry.created_at);
+    const resolvedTone =
+      toneOptions.find((tone) => tone.key === entry.tone_key)?.key || "professional_formal";
+    return {
+      id: entry.id,
+      contact: entry.contact,
+      timestamp: Number.isNaN(timestamp) ? Date.now() : timestamp,
+      tone: resolvedTone,
+      toneScores: entry.tone_scores,
+      impactPrediction: entry.impact_prediction,
+      clarityScore: entry.clarity_after,
+    };
+  };
+
+  const refreshConversations = async () => {
+    if (!allowConversation) {
+      setConversationEntries([]);
+      return;
+    }
+    try {
+      const data = await fetchConversations();
+      setConversationEntries(data.entries.map(mapConversationEntry));
+    } catch {
+      // Keep existing entries if the backend is unavailable.
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadConversations = async () => {
+      if (!allowConversation) {
+        setConversationEntries([]);
+        return;
+      }
+      try {
+        const data = await fetchConversations();
+        if (cancelled) return;
+        setConversationEntries(data.entries.map(mapConversationEntry));
+      } catch {
+        if (!cancelled) {
+          setConversationEntries([]);
+        }
+      }
+    };
+    loadConversations();
+    return () => {
+      cancelled = true;
+    };
+  }, [allowConversation, tier]);
+
+  const filteredEntries = useMemo(() => {
+    if (!contactName.trim()) return [];
+    return conversationEntries.filter((entry) => entry.contact === contactName);
+  }, [conversationEntries, contactName]);
   const conversationSummary = useMemo(
-    () => buildSummary(conversationEntries),
-    [conversationEntries],
+    () => buildSummary(filteredEntries),
+    [filteredEntries],
   );
 
   const contacts = useMemo(() => {
-    const unique = new Set(getConversationEntries().map((entry) => entry.contact));
+    const unique = new Set(conversationEntries.map((entry) => entry.contact));
     return Array.from(unique);
-  }, [response]);
+  }, [conversationEntries]);
 
   useEffect(() => {
     if (!response) return;
@@ -214,7 +278,7 @@ export default function Home() {
     if (!allowConversation) return true;
     if (!contactName.trim()) return false;
     if (tier === "PRO") return true;
-    const uniqueContacts = new Set(getConversationEntries().map((entry) => entry.contact));
+    const uniqueContacts = new Set(conversationEntries.map((entry) => entry.contact));
     if (!uniqueContacts.has(contactName) && uniqueContacts.size >= TIERS[tier].conversationMemory) {
       setUpgradeReason("feature_locked");
       return false;
@@ -312,6 +376,8 @@ export default function Home() {
         }
 
         const results: Array<{ input: string; response: MessageCraftResponse }> = [];
+        let latestMeta: MessageCraftResponse["meta"] | null = null;
+        const entryTone = toneOptions[0].key;
         for (const message of messages) {
           const result = await fetchMessageCraft({
             text: message,
@@ -319,12 +385,43 @@ export default function Home() {
             tone_balance: preferredToneValue,
             user_goal: userGoal,
           });
+          latestMeta = result.meta;
           results.push({ input: message, response: result });
         }
 
         setBatchResults(results);
         setResponse(results[results.length - 1]?.response || null);
-        recordUsage(messages.length);
+        if (latestMeta) {
+          updateUsage(latestMeta.count, latestMeta.reset_at);
+        }
+        if (latestMeta && tier === "FREE") {
+          if (latestMeta.count >= TIERS.FREE.weeklyLimit) {
+            setUpgradeReason("limit_reached");
+          } else if (latestMeta.count === 3) {
+            setUpgradeReason("result_moment");
+          }
+        }
+
+        if (allowConversation && contactName.trim()) {
+          try {
+            for (const item of results) {
+              await createConversationEntry({
+                contact: contactName.trim(),
+                input_text: item.input,
+                output_text: item.response.tone_versions[entryTone],
+                tone_key: entryTone,
+                tone_scores: item.response.analysis.tone_scores,
+                impact_prediction: item.response.usp.relationship_impact_prediction,
+                clarity_before: item.response.usp.before_clarity_score,
+                clarity_after: item.response.usp.after_clarity_score,
+              });
+            }
+            await refreshConversations();
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Conversation save failed.";
+            setError(message);
+          }
+        }
       } else {
         const result = await fetchMessageCraft({
           text: input.trim(),
@@ -333,17 +430,34 @@ export default function Home() {
           user_goal: userGoal,
         });
         setResponse(result);
-        recordUsage(1);
-
-        if (allowConversation && contactName.trim()) {
-          const entryTone = toneOptions[0].key;
-          const entry = createEntry(result, contactName.trim(), entryTone);
-          addConversationEntry(entry);
+        if (result.meta) {
+          updateUsage(result.meta.count, result.meta.reset_at);
         }
 
-        if (tier === "FREE" && usage.count + 1 >= TIERS.FREE.weeklyLimit) {
+        if (allowConversation && contactName.trim()) {
+          try {
+            const entryTone = toneOptions[0].key;
+            await createConversationEntry({
+              contact: contactName.trim(),
+              input_text: input.trim(),
+              output_text: result.tone_versions[entryTone],
+              tone_key: entryTone,
+              tone_scores: result.analysis.tone_scores,
+              impact_prediction: result.usp.relationship_impact_prediction,
+              clarity_before: result.usp.before_clarity_score,
+              clarity_after: result.usp.after_clarity_score,
+            });
+            await refreshConversations();
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Conversation save failed.";
+            setError(message);
+          }
+        }
+
+        const nextCount = result.meta?.count ?? usage.count + 1;
+        if (tier === "FREE" && nextCount >= TIERS.FREE.weeklyLimit) {
           setUpgradeReason("limit_reached");
-        } else if (tier === "FREE" && usage.count + 1 === 3) {
+        } else if (tier === "FREE" && nextCount === 3) {
           setUpgradeReason("result_moment");
         }
       }
@@ -355,23 +469,23 @@ export default function Home() {
     }
   };
 
-  const startCheckout = async (plan: "STARTER" | "PRO") => {
-    try {
-      const url = await createCheckoutSession({
-        plan,
-        billing_cycle: billingCycle,
-        success_url: `${window.location.origin}/checkout/success`,
-        cancel_url: `${window.location.origin}/pricing`,
-      });
-      window.location.href = url.url;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Checkout failed.";
-      setError(message);
-    }
-  };
-
   const handleUpgrade = (reason: UpgradeReason) => {
     setUpgradeReason(reason);
+  };
+
+  const handlePlanSelect = (plan: "STARTER" | "PRO") => {
+    setTier(plan);
+    setUpgradeReason(null);
+  };
+
+  const handleModeSelect = (action: () => void) => {
+    action();
+    setModeMenuOpen(false);
+  };
+
+  const handleLockedMode = () => {
+    setModeMenuOpen(false);
+    handleUpgrade("feature_locked");
   };
 
   const toggleBatchMode = () => {
@@ -387,7 +501,7 @@ export default function Home() {
       setUpgradeReason("feature_locked");
       return;
     }
-    if (!conversationEntries.length) return;
+    if (!filteredEntries.length) return;
     const doc = new jsPDF();
     doc.setFontSize(16);
     doc.text("MessageCraft Pro Report", 14, 20);
@@ -543,7 +657,137 @@ export default function Home() {
                     </p>
                   )}
                 </div>
-                <p className="mt-3 text-xs text-[#9b96aa]">Active mode: {activeLabel}</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#9b96aa]">
+                  <span>Active mode</span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      disabled={!response}
+                      onClick={() => setModeMenuOpen((prev) => !prev)}
+                      className={classNames(
+                        "flex items-center gap-1 rounded-full border px-3 py-1 text-xs",
+                        response
+                          ? "border-[#e5e7eb] bg-white text-[#6f6a83]"
+                          : "border-[#f0eef5] bg-[#faf9fc] text-[#c2bccf]",
+                      )}
+                    >
+                      {activeLabel}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    {modeMenuOpen && response ? (
+                      <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-[#e5e7eb] bg-white p-3 text-xs text-[#6f6a83] shadow-xl z-10">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-[#b2a8c6]">
+                          Tone versions
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {toneOptions.map((tone, index) => {
+                            const locked = index + 1 > toneLimit;
+                            return (
+                              <button
+                                key={tone.key}
+                                type="button"
+                                onClick={() =>
+                                  locked
+                                    ? handleLockedMode()
+                                    : handleModeSelect(() => applyTone(tone.key))
+                                }
+                                className={classNames(
+                                  "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left",
+                                  locked
+                                    ? "text-[#c2bccf]"
+                                    : "hover:bg-[#f8f4fb] text-[#6f6a83]",
+                                )}
+                              >
+                                <span>{tone.label}</span>
+                                {locked && (
+                                  <span className="flex items-center gap-1 text-[11px] text-[#d66c92]">
+                                    <Lock className="h-3 w-3" /> {lockedLabel}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <p className="mt-4 text-[11px] uppercase tracking-[0.2em] text-[#b2a8c6]">
+                          Tactical enhancements
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {tacticalOptions.map((option) => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() => handleModeSelect(() => applyTactical(option.key))}
+                              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[#6f6a83] hover:bg-[#f8f4fb]"
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <p className="mt-4 text-[11px] uppercase tracking-[0.2em] text-[#b2a8c6]">
+                          Quick actions
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {quickActionOptions.map((option) => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() =>
+                                allowQuickActions
+                                  ? handleModeSelect(() => applyQuickAction(option.key))
+                                  : handleLockedMode()
+                              }
+                              className={classNames(
+                                "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left",
+                                allowQuickActions
+                                  ? "hover:bg-[#f8f4fb] text-[#6f6a83]"
+                                  : "text-[#c2bccf]",
+                              )}
+                            >
+                              <span>{option.label}</span>
+                              {!allowQuickActions && (
+                                <span className="flex items-center gap-1 text-[11px] text-[#d66c92]">
+                                  <Lock className="h-3 w-3" /> {lockedLabel}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+
+                        <p className="mt-4 text-[11px] uppercase tracking-[0.2em] text-[#b2a8c6]">
+                          One-click scenarios
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {scenarioOptions.map((option) => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              onClick={() =>
+                                allowScenarios
+                                  ? handleModeSelect(() => applyScenario(option.key))
+                                  : handleLockedMode()
+                              }
+                              className={classNames(
+                                "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left",
+                                allowScenarios
+                                  ? "hover:bg-[#f8f4fb] text-[#6f6a83]"
+                                  : "text-[#c2bccf]",
+                              )}
+                            >
+                              <span>{option.label}</span>
+                              {!allowScenarios && (
+                                <span className="flex items-center gap-1 text-[11px] text-[#d66c92]">
+                                  <Lock className="h-3 w-3" /> {lockedLabel}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -554,7 +798,7 @@ export default function Home() {
                 className="bg-gradient-to-r from-[#6bb3d9] to-[#5ea3cc] hover:from-[#7bc3e9] hover:to-[#6eb3dc] text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-60"
               >
                 <Lightbulb className="w-5 h-5" />
-                <span className="font-medium">Optimize for logic</span>
+                <span className="font-medium">Make it clearer</span>
               </button>
               <button
                 onClick={() => runMessageCraft("emotion")}
@@ -562,9 +806,12 @@ export default function Home() {
                 className="bg-gradient-to-r from-[#e77ba0] to-[#d96a94] hover:from-[#e98bb0] hover:to-[#e17aa4] text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-60"
               >
                 <Heart className="w-5 h-5" />
-                <span className="font-medium">Optimize for warmth</span>
+                <span className="font-medium">Make it warmer</span>
               </button>
             </div>
+            <p className="text-center text-xs text-[#9b96aa]">
+              Clear = direct, structured. Warm = empathetic, softer tone.
+            </p>
             {isLoading ? (
               <p className="text-center text-sm text-[#7d7890]">Crafting your response...</p>
             ) : null}
@@ -605,7 +852,7 @@ export default function Home() {
               </select>
 
               <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
-                Contact
+                Who is this for?
               </label>
               <input
                 value={contactName}
@@ -613,6 +860,9 @@ export default function Home() {
                 placeholder="Partner, manager, client..."
                 className="mt-2 w-full rounded-full border border-[#e5e7eb] bg-white px-4 py-2 text-sm text-[#4a4561]"
               />
+              <p className="mt-2 text-xs text-[#9b96aa]">
+                Used to track tone patterns and conversation health for that person.
+              </p>
 
               {contacts.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -695,7 +945,7 @@ export default function Home() {
                   ? conversationSummary.suggestion
                   : "Upgrade to unlock conversation memory."}
               </p>
-              {allowConversation && conversationEntries.length > 0 ? (
+              {allowConversation && filteredEntries.length > 0 ? (
                 <div className="mt-4">
                   <div className="flex items-center justify-between text-xs text-[#7d7890]">
                     <span>Health score</span>
@@ -714,7 +964,7 @@ export default function Home() {
                     <div className="mt-4 h-24">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
-                          data={conversationEntries
+                          data={filteredEntries
                             .slice(0, 8)
                             .reverse()
                             .map((entry, index) => ({
@@ -1028,7 +1278,7 @@ export default function Home() {
         currentTier={tier}
         billingCycle={billingCycle}
         onClose={() => setUpgradeReason(null)}
-        onCheckout={startCheckout}
+        onSelectPlan={handlePlanSelect}
       />
 
       <style>{`

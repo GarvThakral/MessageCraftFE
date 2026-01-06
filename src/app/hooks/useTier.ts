@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { canTranslate, TIERS } from "../lib/tiers";
 import type { Tier, UsageState } from "../lib/types";
 import { incrementUsage, getUsageState } from "../lib/usage";
-import { readTier, writeTier } from "../lib/storage";
+import { readTier, writeTier, writeUsage } from "../lib/storage";
+import { fetchUsage } from "../lib/api";
 
 export function useTierState() {
   const [tier, setTier] = useState<Tier>(readTier);
@@ -16,11 +17,39 @@ export function useTierState() {
     setUsage(getUsageState());
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const syncUsage = async () => {
+      try {
+        const serverUsage = await fetchUsage();
+        if (cancelled) return;
+        const next = { count: serverUsage.count, resetAt: serverUsage.reset_at };
+        setUsage(next);
+        writeUsage(next);
+      } catch {
+        // Keep local usage if server is unavailable.
+      }
+    };
+    syncUsage();
+    return () => {
+      cancelled = true;
+    };
+  }, [tier]);
+
   const recordUsage = useCallback(
     (amount = 1) => {
       const next = incrementUsage(amount);
       setUsage(next);
       return next;
+    },
+    [setUsage],
+  );
+
+  const updateUsage = useCallback(
+    (count: number, resetAt: string) => {
+      const next = { count, resetAt };
+      setUsage(next);
+      writeUsage(next);
     },
     [setUsage],
   );
@@ -40,5 +69,6 @@ export function useTierState() {
     remaining,
     canRun,
     recordUsage,
+    updateUsage,
   };
 }

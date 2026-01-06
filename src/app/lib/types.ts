@@ -78,6 +78,12 @@ export interface MessageCraftResponse {
     why_it_works: string[];
     change_log: string[];
   };
+  meta: {
+    tier: string;
+    count: number;
+    limit: number | null;
+    reset_at: string;
+  };
 }
 
 export interface UsageState {

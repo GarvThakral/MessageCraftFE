@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Check, Sparkles, User, Users, Briefcase } from "lucide-react";
 
-import { createCheckoutSession, createPortalSession } from "../lib/api";
-import { readCustomerId } from "../lib/storage";
+import { readTier, writeTier } from "../lib/storage";
 
 const PRICING = {
   FREE: { weekly: 0, monthly: 0 },
@@ -41,7 +40,7 @@ const FEATURES = {
 const FAQS = [
   {
     q: "Can I cancel anytime?",
-    a: "Yes. You can cancel whenever you want from your billing portal.",
+    a: "Yes. Payments are disabled for now, so you can switch tiers anytime.",
   },
   {
     q: "Do unused translations roll over?",
@@ -49,15 +48,14 @@ const FAQS = [
   },
   {
     q: "What payment methods are supported?",
-    a: "Stripe checkout supports card, Apple Pay, and Google Pay.",
+    a: "Payments are coming soon. For now, select your tier in the app.",
   },
 ];
 
 export default function Pricing() {
   const [billingCycle, setBillingCycle] = useState<"weekly" | "monthly">("weekly");
   const [peopleCount, setPeopleCount] = useState(2347);
-  const [error, setError] = useState("");
-  const [customerId] = useState(readCustomerId());
+  const [currentTier, setCurrentTier] = useState(readTier());
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -66,33 +64,9 @@ export default function Pricing() {
     return () => clearInterval(interval);
   }, []);
 
-  const startCheckout = async (plan: "STARTER" | "PRO") => {
-    try {
-      const url = await createCheckoutSession({
-        plan,
-        billing_cycle: billingCycle,
-        success_url: `${window.location.origin}/checkout/success`,
-        cancel_url: `${window.location.origin}/pricing`,
-      });
-      window.location.href = url.url;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Checkout failed.";
-      setError(message);
-    }
-  };
-
-  const openPortal = async () => {
-    if (!customerId) return;
-    try {
-      const session = await createPortalSession({
-        customer_id: customerId,
-        return_url: `${window.location.origin}/pricing`,
-      });
-      window.location.href = session.url;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Portal failed.";
-      setError(message);
-    }
+  const activateTier = (plan: "FREE" | "STARTER" | "PRO") => {
+    writeTier(plan);
+    setCurrentTier(plan);
   };
 
   const cycleLabel = billingCycle === "weekly" ? "week" : "month";
@@ -142,16 +116,7 @@ export default function Pricing() {
               Monthly (save 15%)
             </button>
           </div>
-          {customerId ? (
-            <div className="mt-4">
-              <button
-                onClick={openPortal}
-                className="rounded-full border border-[#e5e7eb] px-4 py-2 text-xs text-[#7d7890]"
-              >
-                Manage subscription
-              </button>
-            </div>
-          ) : null}
+          <p className="mt-4 text-xs text-[#9b96aa]">Current plan: {currentTier}</p>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-3">
@@ -190,14 +155,14 @@ export default function Pricing() {
               </ul>
               {tier !== "FREE" ? (
                 <button
-                  onClick={() => startCheckout(tier)}
+                  onClick={() => activateTier(tier)}
                   className={
                     highlight
                       ? "mt-6 w-full rounded-full bg-[#3d3854] px-4 py-3 text-sm font-semibold text-white"
                       : "mt-6 w-full rounded-full bg-[#e77ba0] px-4 py-3 text-sm font-semibold text-white"
                   }
                 >
-                  Start 7-day free trial
+                  Activate {tier}
                 </button>
               ) : (
                 <Link
@@ -210,8 +175,6 @@ export default function Pricing() {
             </div>
           ))}
         </section>
-
-        {error ? <p className="text-center text-sm text-[#b9586b]">{error}</p> : null}
 
         <section className="grid gap-6 md:grid-cols-3">
           <div className="rounded-3xl bg-white/80 p-6 shadow-lg">
@@ -262,16 +225,16 @@ export default function Pricing() {
 
         <section className="rounded-3xl bg-white/80 p-8 text-center shadow-lg">
           <h3 className="text-2xl font-semibold text-[#3d3854]">
-            Try Starter risk-free for 7 days
+            Preview Starter features instantly
           </h3>
           <p className="mt-3 text-sm text-[#7d7890]">
-            Not happy? Full refund, no questions asked.
+            Payments are disabled right now. Switch tiers anytime to explore the full product.
           </p>
           <button
-            onClick={() => startCheckout("STARTER")}
+            onClick={() => activateTier("STARTER")}
             className="mt-6 rounded-full bg-[#e77ba0] px-6 py-3 text-sm font-semibold text-white"
           >
-            Start Starter Trial
+            Activate Starter
           </button>
         </section>
       </main>

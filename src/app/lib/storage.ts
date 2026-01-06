@@ -1,10 +1,10 @@
 import type { ConversationEntry, Preset, Tier, UsageState } from "./types";
 
-const TIER_KEY = "messagecraft_tier";
+const TIER_KEY = "tier";
 const USAGE_KEY = "messagecraft_usage";
 const HISTORY_KEY = "messagecraft_history";
 const PRESETS_KEY = "messagecraft_presets";
-const CUSTOMER_KEY = "messagecraft_customer_id";
+const SESSION_KEY = "messagecraft_session_id";
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -23,7 +23,22 @@ function writeJson<T>(key: string, value: T): void {
 }
 
 export function readTier(): Tier {
-  return readJson<Tier>(TIER_KEY, "FREE");
+  if (typeof window === "undefined") return "FREE";
+  const stored = window.localStorage.getItem(TIER_KEY);
+  const parsed = stored
+    ? (() => {
+        try {
+          return JSON.parse(stored);
+        } catch {
+          return stored;
+        }
+      })()
+    : "FREE";
+  const raw = String(parsed).toUpperCase();
+  if (raw === "STARTER" || raw === "PRO" || raw === "FREE") {
+    return raw as Tier;
+  }
+  return "FREE";
 }
 
 export function writeTier(tier: Tier): void {
@@ -54,10 +69,13 @@ export function writePresets(presets: Preset[]): void {
   writeJson(PRESETS_KEY, presets);
 }
 
-export function readCustomerId(): string {
-  return readJson<string>(CUSTOMER_KEY, "");
-}
-
-export function writeCustomerId(customerId: string): void {
-  writeJson(CUSTOMER_KEY, customerId);
+export function readSessionId(): string {
+  const stored = readJson<string>(SESSION_KEY, "");
+  if (stored) return stored;
+  const newId =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `mc-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+  writeJson(SESSION_KEY, newId);
+  return newId;
 }

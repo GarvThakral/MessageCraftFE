@@ -13,7 +13,7 @@ interface UpgradeModalProps {
   currentTier: Tier;
   billingCycle: "weekly" | "monthly";
   onClose: () => void;
-  onCheckout: (plan: "STARTER" | "PRO") => void;
+  onSelectPlan: (plan: "STARTER" | "PRO") => void;
 }
 
 const reasonCopy: Record<UpgradeReason, { title: string; description: string }> = {
@@ -37,7 +37,7 @@ export default function UpgradeModal({
   currentTier,
   billingCycle,
   onClose,
-  onCheckout,
+  onSelectPlan,
 }: UpgradeModalProps) {
   if (!open) return null;
 
@@ -79,10 +79,10 @@ export default function UpgradeModal({
               <li>Conversation memory (5 contacts)</li>
             </ul>
             <button
-              onClick={() => onCheckout("STARTER")}
+              onClick={() => onSelectPlan("STARTER")}
               className="mt-6 w-full rounded-full bg-[#e77ba0] px-5 py-3 text-sm font-semibold text-white shadow-lg"
             >
-              Start 7-day free trial
+              Activate Starter
             </button>
           </div>
 
@@ -106,16 +106,16 @@ export default function UpgradeModal({
               <li>Priority one-click scenarios</li>
             </ul>
             <button
-              onClick={() => onCheckout("PRO")}
+              onClick={() => onSelectPlan("PRO")}
               className="mt-6 w-full rounded-full bg-[#3d3854] px-5 py-3 text-sm font-semibold text-white shadow-lg"
             >
-              Start 7-day free trial
+              Activate Pro
             </button>
           </div>
         </div>
 
         <p className="mt-6 text-xs text-[#9b96aa]">
-          Cancel anytime. After trial: billed {billingCycle}. Current plan: {currentTier}.
+          Switch plans anytime. Current plan: {currentTier}.
         </p>
       </div>
     </div>
