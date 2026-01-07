@@ -13,7 +13,12 @@ import {
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { jsPDF } from "jspdf";
 
-import { createConversationEntry, fetchConversations, fetchMessageCraft } from "../lib/api";
+import {
+  createConversationEntry,
+  createDodoCheckoutLink,
+  fetchConversations,
+  fetchMessageCraft,
+} from "../lib/api";
 import { buildSummary } from "../lib/conversation";
 import { checkFeatureAccess, getToneLimit, TIERS } from "../lib/tiers";
 import type {
@@ -30,6 +35,7 @@ import { classNames } from "../lib/utils";
 import { useTierState } from "../hooks/useTier";
 import UpgradeModal, { type UpgradeReason } from "../components/UpgradeModal";
 import UsageBanner from "../components/UsageBanner";
+import { useAuth } from "../hooks/useAuth";
 
 const toneOptions: Array<{ key: ToneKey; label: string; description: string }> = [
   {
@@ -108,8 +114,24 @@ const POWER_LABELS: Record<string, string> = {
   other_has_leverage: "They hold leverage",
 };
 
+const DEMO_EXAMPLES = [
+  {
+    input: "I hate you, this is exhausting.",
+    output: "I'm really upset right now. Can we pause and talk when I'm calmer?",
+  },
+  {
+    input: "You never listen to me.",
+    output: "I feel unheard lately. Can we slow down and really talk this through?",
+  },
+  {
+    input: "Stop being so dramatic.",
+    output: "I want to understand you, but I need us to keep this calm.",
+  },
+];
+
 export default function Home() {
-  const { tier, setTier, usage, remaining, canRun, updateUsage } = useTierState();
+  const { user, token, isAuthenticated, signOut } = useAuth();
+  const { tier, usage, remaining, canRun, updateUsage } = useTierState(token);
   const [toneValue, setToneValue] = useState(50);
   const [input, setInput] = useState("");
   const [response, setResponse] = useState<MessageCraftResponse | null>(null);
@@ -135,6 +157,9 @@ export default function Home() {
   const [billingCycle] = useState<"weekly" | "monthly">("weekly");
   const [conversationEntries, setConversationEntries] = useState<ConversationEntry[]>([]);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [demoInput, setDemoInput] = useState("");
+  const [demoOutput, setDemoOutput] = useState("");
 
   const toneLimit = getToneLimit(tier);
   const allowFullAnalysis = checkFeatureAccess("full_analysis", tier);
@@ -147,10 +172,13 @@ export default function Home() {
   const allowBatchMode = checkFeatureAccess("batch_mode", tier);
   const allowClipboard = checkFeatureAccess("export_clipboard", tier);
   const lockedLabel = tier === "FREE" ? "Starter" : "Pro";
+  const displayInputValue = isAuthenticated ? input : demoInput;
+  const displayOutputValue = isAuthenticated ? activeRewrite : demoOutput;
+  const displayActiveLabel = isAuthenticated ? activeLabel : "Demo mode";
 
   const usageNotice = useMemo(() => {
     if (tier === "FREE" && usage.count >= TIERS.FREE.weeklyLimit) {
-      return "You've used all free translations. Upgrade to Starter for 25/week at $1.99.";
+      return "You've used today's free translation. Upgrade to Starter for 25/week at $1.99.";
     }
     if (tier === "STARTER" && usage.count >= 20) {
       return "You're a power user. Upgrade to Pro for unlimited translations.";
@@ -247,6 +275,81 @@ export default function Home() {
     writePresets(presets);
   }, [presets]);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      setDemoInput("");
+      setDemoOutput("");
+      return;
+    }
+
+    let cancelled = false;
+    const timers: number[] = [];
+    const schedule = (fn: () => void, delay: number) => {
+      const id = window.setTimeout(() => {
+        if (!cancelled) {
+          fn();
+        }
+      }, delay);
+      timers.push(id);
+    };
+
+    const typeText = (
+      text: string,
+      setter: (value: string) => void,
+      speed: number,
+      onDone: () => void,
+    ) => {
+      let index = 0;
+      const tick = () => {
+        if (cancelled) return;
+        index += 1;
+        setter(text.slice(0, index));
+        if (index < text.length) {
+          schedule(tick, speed);
+        } else {
+          onDone();
+        }
+      };
+      schedule(tick, speed);
+    };
+
+    const runExample = (exampleIndex: number) => {
+      const example = DEMO_EXAMPLES[exampleIndex % DEMO_EXAMPLES.length];
+      setDemoInput("");
+      setDemoOutput("");
+
+      let inputDone = false;
+      let outputDone = false;
+      const handleDone = () => {
+        if (inputDone && outputDone) {
+          schedule(() => runExample(exampleIndex + 1), 1200);
+        }
+      };
+
+      typeText(example.input, setDemoInput, 28, () => {
+        inputDone = true;
+        handleDone();
+      });
+      typeText(example.output, setDemoOutput, 32, () => {
+        outputDone = true;
+        handleDone();
+      });
+    };
+
+    runExample(0);
+
+    return () => {
+      cancelled = true;
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLoginPromptOpen(false);
+    }
+  }, [isAuthenticated]);
+
   const handlePresetSelect = (presetId: string) => {
     const preset = presets.find((item) => item.id === presetId);
     if (!preset) return;
@@ -332,6 +435,10 @@ export default function Home() {
   };
 
   const copyToClipboard = async () => {
+    if (!isAuthenticated) {
+      openLoginPrompt();
+      return;
+    }
     if (!activeRewrite || !allowClipboard) {
       setUpgradeReason("feature_locked");
       return;
@@ -340,6 +447,11 @@ export default function Home() {
   };
 
   const runMessageCraft = async (mode: "logic" | "emotion") => {
+    if (!isAuthenticated) {
+      openLoginPrompt();
+      return;
+    }
+
     if (!input.trim()) {
       setError("Please enter a message.");
       return;
@@ -463,7 +575,11 @@ export default function Home() {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong.";
-      setError(message);
+      if (message.toLowerCase().includes("limit")) {
+        setUpgradeReason("limit_reached");
+      } else {
+        setError(message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -473,9 +589,22 @@ export default function Home() {
     setUpgradeReason(reason);
   };
 
-  const handlePlanSelect = (plan: "STARTER" | "PRO") => {
-    setTier(plan);
-    setUpgradeReason(null);
+  const openLoginPrompt = () => {
+    setLoginPromptOpen(true);
+  };
+
+  const handlePlanSelect = async (plan: "STARTER" | "PRO") => {
+    if (!isAuthenticated) {
+      setError("Please sign in to change your plan.");
+      return;
+    }
+    try {
+      const result = await createDodoCheckoutLink(plan);
+      window.location.href = result.checkout_url;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Checkout failed.";
+      setError(message);
+    }
   };
 
   const handleModeSelect = (action: () => void) => {
@@ -530,6 +659,24 @@ export default function Home() {
           <Link to="/pricing" className="hover:text-[#3d3854]">
             Pricing
           </Link>
+          {isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-[#9b96aa]">Hi, {user?.username}</span>
+              <button
+                onClick={signOut}
+                className="rounded-full border border-[#e5e7eb] px-4 py-2 text-xs font-semibold text-[#7d7890]"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <Link
+              to="/auth"
+              className="rounded-full bg-[#3d3854] px-4 py-2 text-xs font-semibold text-white"
+            >
+              Sign in
+            </Link>
+          )}
           <button
             onClick={() => handleUpgrade("feature_locked")}
             className="rounded-full bg-[#3d3854] px-4 py-2 text-xs font-semibold text-white"
@@ -540,13 +687,28 @@ export default function Home() {
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-16">
-        <UsageBanner
-          used={usage.count}
-          limit={TIERS[tier].weeklyLimit}
-          resetAt={usage.resetAt}
-          notice={usageNotice || undefined}
-          onUpgrade={() => handleUpgrade("limit_reached")}
-        />
+        {isAuthenticated ? (
+          <UsageBanner
+            used={usage.count}
+            limit={TIERS[tier].weeklyLimit}
+            resetAt={usage.resetAt}
+            notice={usageNotice || undefined}
+            periodLabel={tier === "FREE" ? "today" : "this week"}
+            onUpgrade={() => handleUpgrade("limit_reached")}
+          />
+        ) : (
+          <div className="rounded-2xl bg-white/70 px-5 py-3 text-sm text-[#6f6a83] shadow">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>Sign in to unlock your daily free translation.</span>
+              <Link
+                to="/auth"
+                className="rounded-full bg-[#3d3854] px-4 py-2 text-xs font-semibold text-white"
+              >
+                Sign in
+              </Link>
+            </div>
+          </div>
+        )}
 
         <section className="flex flex-col items-center justify-center px-4 py-6 text-center">
           <div className="flex gap-4 mb-10">
@@ -609,8 +771,20 @@ export default function Home() {
                   <h2 className="text-lg font-semibold text-[#4a4561]">Your Message</h2>
                 </div>
                 <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  value={displayInputValue}
+                  onChange={(e) => {
+                    if (!isAuthenticated) {
+                      openLoginPrompt();
+                      return;
+                    }
+                    setInput(e.target.value);
+                  }}
+                  onFocus={() => {
+                    if (!isAuthenticated) {
+                      openLoginPrompt();
+                    }
+                  }}
+                  readOnly={!isAuthenticated}
                   placeholder="Paste or type your message..."
                   className="w-full h-36 p-4 bg-[#fafbfc] rounded-xl border border-[#e5e7eb] resize-none focus:outline-none focus:ring-2 focus:ring-[#d96a94]/30 text-[#4a4561] placeholder:text-[#b5b2c3]"
                 />
@@ -643,15 +817,22 @@ export default function Home() {
                     </button>
                   )}
                 </div>
-                <div className="w-full min-h-[144px] p-4 bg-[#fafbfc] rounded-xl border border-[#e5e7eb]">
-                  {activeRewrite ? (
-                    <p className="text-[#7d7890]">{activeRewrite}</p>
+                <div
+                  className="w-full min-h-[144px] p-4 bg-[#fafbfc] rounded-xl border border-[#e5e7eb]"
+                  onClick={() => {
+                    if (!isAuthenticated) {
+                      openLoginPrompt();
+                    }
+                  }}
+                >
+                  {displayOutputValue ? (
+                    <p className="text-[#7d7890]">{displayOutputValue}</p>
                   ) : (
                     <p className="text-[#b5b2c3] italic">
                       Your optimized message will appear here.
                     </p>
                   )}
-                  {tier === "FREE" && activeRewrite && (
+                  {tier === "FREE" && displayOutputValue && (
                     <p className="mt-4 text-xs uppercase tracking-[0.3em] text-[#d1c8e3]">
                       Crafted with MessageCraft
                     </p>
@@ -671,7 +852,7 @@ export default function Home() {
                           : "border-[#f0eef5] bg-[#faf9fc] text-[#c2bccf]",
                       )}
                     >
-                      {activeLabel}
+                      {displayActiveLabel}
                       <ChevronDown className="h-3 w-3" />
                     </button>
                     {modeMenuOpen && response ? (
@@ -794,16 +975,22 @@ export default function Home() {
             <div className="flex flex-wrap gap-4 justify-center">
               <button
                 onClick={() => runMessageCraft("logic")}
-                disabled={!canRun || isLoading}
-                className="bg-gradient-to-r from-[#6bb3d9] to-[#5ea3cc] hover:from-[#7bc3e9] hover:to-[#6eb3dc] text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-60"
+                disabled={isLoading}
+                className={classNames(
+                  "bg-gradient-to-r from-[#6bb3d9] to-[#5ea3cc] hover:from-[#7bc3e9] hover:to-[#6eb3dc] text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2",
+                  (!isAuthenticated || !canRun || isLoading) && "opacity-60",
+                )}
               >
                 <Lightbulb className="w-5 h-5" />
                 <span className="font-medium">Make it clearer</span>
               </button>
               <button
                 onClick={() => runMessageCraft("emotion")}
-                disabled={!canRun || isLoading}
-                className="bg-gradient-to-r from-[#e77ba0] to-[#d96a94] hover:from-[#e98bb0] hover:to-[#e17aa4] text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-60"
+                disabled={isLoading}
+                className={classNames(
+                  "bg-gradient-to-r from-[#e77ba0] to-[#d96a94] hover:from-[#e98bb0] hover:to-[#e17aa4] text-white px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2",
+                  (!isAuthenticated || !canRun || isLoading) && "opacity-60",
+                )}
               >
                 <Heart className="w-5 h-5" />
                 <span className="font-medium">Make it warmer</span>
@@ -1271,6 +1458,31 @@ export default function Home() {
           </section>
         )}
       </main>
+
+      {loginPromptOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
+            <h2 className="text-2xl font-semibold text-[#3d3854]">Sign in to unlock MessageCraft</h2>
+            <p className="mt-2 text-sm text-[#7d7890]">
+              Create a free account to use your daily translation and save conversation history.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/auth"
+                className="rounded-full bg-[#3d3854] px-5 py-2 text-sm font-semibold text-white"
+              >
+                Sign in / Create account
+              </Link>
+              <button
+                onClick={() => setLoginPromptOpen(false)}
+                className="rounded-full border border-[#e5e7eb] px-5 py-2 text-sm font-semibold text-[#7d7890]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <UpgradeModal
         open={upgradeReason !== null}

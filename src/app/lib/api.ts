@@ -1,10 +1,15 @@
-import type { MessageCraftRequest, MessageCraftResponse } from "./types";
-import { readSessionId, readTier } from "./storage";
+import type { MessageCraftRequest, MessageCraftResponse, User } from "./types";
+import { readAuthToken, readSessionId, readTier } from "./storage";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(
   /\/$/,
   "",
 );
+
+function authHeaders(): Record<string, string> {
+  const token = readAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export async function fetchMessageCraft(
   payload: MessageCraftRequest,
@@ -17,6 +22,7 @@ export async function fetchMessageCraft(
       "Content-Type": "application/json",
       "X-Session-Id": sessionId,
       "X-User-Tier": tier,
+      ...authHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -48,6 +54,7 @@ export async function fetchUsage(): Promise<{
     headers: {
       "X-Session-Id": sessionId,
       "X-User-Tier": tier,
+      ...authHeaders(),
     },
   });
 
@@ -84,6 +91,7 @@ export async function createConversationEntry(payload: {
       "Content-Type": "application/json",
       "X-Session-Id": sessionId,
       "X-User-Tier": tier,
+      ...authHeaders(),
     },
     body: JSON.stringify(payload),
   });
@@ -126,6 +134,7 @@ export async function fetchConversations(contact?: string): Promise<{
     headers: {
       "X-Session-Id": sessionId,
       "X-User-Tier": tier,
+      ...authHeaders(),
     },
   });
 
@@ -153,4 +162,96 @@ export async function fetchConversations(contact?: string): Promise<{
       created_at: string;
     }>;
   };
+}
+
+export async function signup(payload: {
+  username: string;
+  password: string;
+}): Promise<{ token: string; user: User }> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.token) {
+    const message = typeof data?.detail === "string" ? data.detail : "Signup failed";
+    throw new Error(message);
+  }
+
+  return data as { token: string; user: User };
+}
+
+export async function login(payload: {
+  username: string;
+  password: string;
+}): Promise<{ token: string; user: User }> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.token) {
+    const message = typeof data?.detail === "string" ? data.detail : "Login failed";
+    throw new Error(message);
+  }
+
+  return data as { token: string; user: User };
+}
+
+export async function fetchMe(): Promise<User> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+    headers: {
+      ...authHeaders(),
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.id) {
+    const message = typeof data?.detail === "string" ? data.detail : "Failed to fetch user";
+    const error = new Error(message);
+    (error as { status?: number }).status = response.status;
+    throw error;
+  }
+
+  return data as User;
+}
+
+export async function updateAccountTier(tier: "FREE" | "STARTER" | "PRO"): Promise<{
+  tier: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/account/tier`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ tier }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.tier) {
+    const message = typeof data?.detail === "string" ? data.detail : "Tier update failed";
+    throw new Error(message);
+  }
+
+  return data as { tier: string };
+}
+
+export async function createDodoCheckoutLink(tier: "STARTER" | "PRO"): Promise<{
+  checkout_url: string;
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/payments/dodo/checkout-link`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ tier }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.checkout_url) {
+    const message = typeof data?.detail === "string" ? data.detail : "Checkout link failed";
+    throw new Error(message);
+  }
+
+  return data as { checkout_url: string };
 }

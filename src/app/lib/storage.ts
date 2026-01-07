@@ -1,10 +1,12 @@
-import type { ConversationEntry, Preset, Tier, UsageState } from "./types";
+import type { ConversationEntry, Preset, Tier, UsageState, User } from "./types";
 
 const TIER_KEY = "tier";
 const USAGE_KEY = "messagecraft_usage";
 const HISTORY_KEY = "messagecraft_history";
 const PRESETS_KEY = "messagecraft_presets";
 const SESSION_KEY = "messagecraft_session_id";
+const AUTH_TOKEN_KEY = "messagecraft_auth_token";
+const USER_KEY = "messagecraft_user";
 
 function readJson<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -78,4 +80,32 @@ export function readSessionId(): string {
       : `mc-${Math.random().toString(36).slice(2)}-${Date.now()}`;
   writeJson(SESSION_KEY, newId);
   return newId;
+}
+
+export function readAuthToken(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(AUTH_TOKEN_KEY) || "";
+}
+
+export function writeAuthToken(token: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+export function clearAuthToken(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+export function readUser(): User | null {
+  return readJson<User | null>(USER_KEY, null);
+}
+
+export function writeUser(user: User): void {
+  writeJson(USER_KEY, user);
+}
+
+export function clearUser(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(USER_KEY);
 }

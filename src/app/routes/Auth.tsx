@@ -1,0 +1,149 @@
+import { useState, type FormEvent } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { login, signup } from "../lib/api";
+import { useAuth } from "../hooks/useAuth";
+
+export default function Auth() {
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    if (!username.trim() || !password.trim()) {
+      setError("Please enter a username and password.");
+      return;
+    }
+    if (mode === "signup" && password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result =
+        mode === "signup"
+          ? await signup({ username: username.trim(), password })
+          : await login({ username: username.trim(), password });
+      signIn(result.token, result.user);
+      navigate("/");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Authentication failed.";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#f3e5e8] via-[#f0eef5] to-[#e8f2f7] flex items-center justify-center px-6">
+      <div className="w-full max-w-4xl grid gap-8 md:grid-cols-[1.1fr_1fr]">
+        <div className="rounded-3xl bg-white/80 p-10 shadow-xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b2a8c6]">
+            MessageCraft Pro
+          </p>
+          <h1 className="mt-4 text-3xl font-semibold text-[#3d3854]">
+            Sign in to shape every message.
+          </h1>
+          <p className="mt-3 text-sm text-[#7d7890]">
+            Your account stores usage limits, tone history, and conversation insights. No email
+            required.
+          </p>
+          <ul className="mt-6 space-y-3 text-sm text-[#6f6a83]">
+            <li>- Track usage limits and tier access.</li>
+            <li>- Save conversation health per contact.</li>
+            <li>- Unlock the full message intelligence stack.</li>
+          </ul>
+        </div>
+
+        <div className="rounded-3xl bg-white p-8 shadow-xl">
+          <div className="flex gap-2 rounded-full bg-[#f3f0fb] p-1 text-xs font-semibold text-[#7d7890]">
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              className={
+                mode === "login"
+                  ? "flex-1 rounded-full bg-white px-4 py-2 text-[#3d3854] shadow"
+                  : "flex-1 px-4 py-2"
+              }
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("signup")}
+              className={
+                mode === "signup"
+                  ? "flex-1 rounded-full bg-white px-4 py-2 text-[#3d3854] shadow"
+                  : "flex-1 px-4 py-2"
+              }
+            >
+              Sign up
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
+                Username
+              </label>
+              <input
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="yourname"
+                className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="••••••••"
+                className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
+              />
+            </div>
+            {mode === "signup" && (
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
+                  Confirm password
+                </label>
+                <input
+                  type="password"
+                  value={confirm}
+                  onChange={(event) => setConfirm(event.target.value)}
+                  placeholder="••••••••"
+                  className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
+                />
+              </div>
+            )}
+            {error ? <p className="text-sm text-[#b9586b]">{error}</p> : null}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-full bg-[#3d3854] px-4 py-3 text-sm font-semibold text-white"
+            >
+              {loading ? "Working..." : mode === "signup" ? "Create account" : "Log in"}
+            </button>
+          </form>
+
+          <p className="mt-6 text-xs text-[#9b96aa]">
+            By continuing you agree to keep things respectful.{" "}
+            <Link to="/" className="text-[#5e78a8] hover:underline">
+              Back to app
+            </Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

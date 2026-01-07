@@ -116,3 +116,9 @@ export interface Preset {
   toneBalance: number;
   toggles: TacticalKey[];
 }
+
+export interface User {
+  id: string;
+  username: string;
+  tier: Tier;
+}

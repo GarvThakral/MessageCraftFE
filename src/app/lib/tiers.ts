@@ -2,7 +2,7 @@ import type { Tier } from "./types";
 
 export const TIERS = {
   FREE: {
-    weeklyLimit: 3,
+    weeklyLimit: 1,
     toneVariations: 3,
     conversationMemory: 0,
     features: ["basic_analysis"],

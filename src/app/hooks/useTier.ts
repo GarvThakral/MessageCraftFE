@@ -5,7 +5,7 @@ import { incrementUsage, getUsageState } from "../lib/usage";
 import { readTier, writeTier, writeUsage } from "../lib/storage";
 import { fetchUsage } from "../lib/api";
 
-export function useTierState() {
+export function useTierState(authToken?: string) {
   const [tier, setTier] = useState<Tier>(readTier);
   const [usage, setUsage] = useState<UsageState>(getUsageState);
 
@@ -14,16 +14,32 @@ export function useTierState() {
   }, [tier]);
 
   useEffect(() => {
+    if (!authToken) {
+      setTier("FREE");
+    }
+  }, [authToken]);
+
+  useEffect(() => {
     setUsage(getUsageState());
   }, []);
 
   useEffect(() => {
     let cancelled = false;
     const syncUsage = async () => {
+      if (!authToken) {
+        return;
+      }
       try {
         const serverUsage = await fetchUsage();
         if (cancelled) return;
+        const nextTier =
+          serverUsage.tier === "PRO"
+            ? "PRO"
+            : serverUsage.tier === "STARTER"
+              ? "STARTER"
+              : "FREE";
         const next = { count: serverUsage.count, resetAt: serverUsage.reset_at };
+        setTier(nextTier);
         setUsage(next);
         writeUsage(next);
       } catch {
@@ -34,7 +50,7 @@ export function useTierState() {
     return () => {
       cancelled = true;
     };
-  }, [tier]);
+  }, [tier, authToken]);
 
   const recordUsage = useCallback(
     (amount = 1) => {
@@ -60,7 +76,10 @@ export function useTierState() {
     return Math.max(0, limit - usage.count);
   }, [tier, usage.count]);
 
-  const canRun = useMemo(() => canTranslate(tier, usage.count), [tier, usage.count]);
+  const canRun = useMemo(() => {
+    if (!authToken) return false;
+    return canTranslate(tier, usage.count);
+  }, [tier, usage.count, authToken]);
 
   return {
     tier,

@@ -19,7 +19,7 @@ interface UpgradeModalProps {
 const reasonCopy: Record<UpgradeReason, { title: string; description: string }> = {
   limit_reached: {
     title: "Upgrade to keep translating",
-    description: "You have hit your weekly limit. Unlock more translations instantly.",
+    description: "You have hit your limit. Unlock more translations instantly.",
   },
   feature_locked: {
     title: "This feature is in a paid plan",

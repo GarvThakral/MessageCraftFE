@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Check, Sparkles, User, Users, Briefcase } from "lucide-react";
 
+import { createDodoCheckoutLink, updateAccountTier } from "../lib/api";
 import { readTier, writeTier } from "../lib/storage";
+import { useAuth } from "../hooks/useAuth";
 
 const PRICING = {
   FREE: { weekly: 0, monthly: 0 },
@@ -12,7 +14,7 @@ const PRICING = {
 
 const FEATURES = {
   FREE: [
-    "3 translations per week",
+    "1 translation per day",
     "3 tone variations",
     "Basic tone analysis",
     "Watermark on output",
@@ -44,7 +46,7 @@ const FAQS = [
   },
   {
     q: "Do unused translations roll over?",
-    a: "No. Usage resets every Monday at 00:00.",
+    a: "No. Free resets daily; paid plans reset weekly.",
   },
   {
     q: "What payment methods are supported?",
@@ -56,6 +58,8 @@ export default function Pricing() {
   const [billingCycle, setBillingCycle] = useState<"weekly" | "monthly">("weekly");
   const [peopleCount, setPeopleCount] = useState(2347);
   const [currentTier, setCurrentTier] = useState(readTier());
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -64,9 +68,29 @@ export default function Pricing() {
     return () => clearInterval(interval);
   }, []);
 
-  const activateTier = (plan: "FREE" | "STARTER" | "PRO") => {
-    writeTier(plan);
-    setCurrentTier(plan);
+  useEffect(() => {
+    setCurrentTier(readTier());
+  }, [isAuthenticated]);
+
+  const activateTier = async (plan: "FREE" | "STARTER" | "PRO") => {
+    if (!isAuthenticated) {
+      navigate("/auth");
+      return;
+    }
+    try {
+      if (plan === "FREE") {
+        const result = await updateAccountTier(plan);
+        const nextTier =
+          result.tier === "PRO" ? "PRO" : result.tier === "STARTER" ? "STARTER" : "FREE";
+        writeTier(nextTier);
+        setCurrentTier(nextTier);
+      } else {
+        const result = await createDodoCheckoutLink(plan);
+        window.location.href = result.checkout_url;
+      }
+    } catch {
+      // Keep current tier if update fails.
+    }
   };
 
   const cycleLabel = billingCycle === "weekly" ? "week" : "month";
@@ -117,6 +141,11 @@ export default function Pricing() {
             </button>
           </div>
           <p className="mt-4 text-xs text-[#9b96aa]">Current plan: {currentTier}</p>
+          {!isAuthenticated && (
+            <p className="mt-2 text-xs text-[#b2a8c6]">
+              Sign in to select a plan and sync it across devices.
+            </p>
+          )}
         </section>
 
         <section className="grid gap-6 lg:grid-cols-3">
