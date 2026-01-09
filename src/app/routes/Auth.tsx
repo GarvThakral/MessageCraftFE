@@ -1,14 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { login, signup } from "../lib/api";
+import { login, requestPasswordReset, signup } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Auth() {
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
@@ -16,22 +18,48 @@ export default function Auth() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setNotice("");
+    if (mode === "forgot") {
+      if (!email.trim()) {
+        setError("Please enter the email you signed up with.");
+        return;
+      }
+      setLoading(true);
+      try {
+        await requestPasswordReset(email.trim());
+        setNotice("Check your inbox for a password reset link.");
+        setMode("login");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Reset request failed.";
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!username.trim() || !password.trim()) {
       setError("Please enter a username and password.");
       return;
     }
-    if (mode === "signup" && password !== confirm) {
-      setError("Passwords do not match.");
-      return;
+    if (mode === "signup") {
+      if (!email.trim()) {
+        setError("Please enter a valid email.");
+        return;
+      }
+      if (password !== confirm) {
+        setError("Passwords do not match.");
+        return;
+      }
     }
 
     setLoading(true);
     try {
       const result =
         mode === "signup"
-          ? await signup({ username: username.trim(), password })
+          ? await signup({ username: username.trim(), email: email.trim(), password })
           : await login({ username: username.trim(), password });
-      signIn(result.token, result.user);
+      signIn(result.token, result.refresh_token, result.user);
       navigate("/");
     } catch (err) {
       const message = err instanceof Error ? err.message : "Authentication failed.";
@@ -52,8 +80,8 @@ export default function Auth() {
             Sign in to shape every message.
           </h1>
           <p className="mt-3 text-sm text-[#7d7890]">
-            Your account stores usage limits, tone history, and conversation insights. No email
-            required.
+            Your account stores usage limits, tone history, and conversation insights. Email
+            verification is required.
           </p>
           <ul className="mt-6 space-y-3 text-sm text-[#6f6a83]">
             <li>- Track usage limits and tier access.</li>
@@ -86,32 +114,61 @@ export default function Auth() {
             >
               Sign up
             </button>
+            <button
+              type="button"
+              onClick={() => setMode("forgot")}
+              className={
+                mode === "forgot"
+                  ? "flex-1 rounded-full bg-white px-4 py-2 text-[#3d3854] shadow"
+                  : "flex-1 px-4 py-2"
+              }
+            >
+              Forgot
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
-                Username
-              </label>
-              <input
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder="yourname"
-                className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
-                Password
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-                className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
-              />
-            </div>
+            {mode !== "forgot" && (
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
+                  Username
+                </label>
+                <input
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="yourname"
+                  className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
+                />
+              </div>
+            )}
+            {(mode === "signup" || mode === "forgot") && (
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@example.com"
+                  className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
+                />
+              </div>
+            )}
+            {mode !== "forgot" && (
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="••••••••"
+                  className="mt-2 w-full rounded-full border border-[#e5e7eb] px-4 py-2 text-sm text-[#4a4561]"
+                />
+              </div>
+            )}
             {mode === "signup" && (
               <div>
                 <label className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
@@ -126,13 +183,20 @@ export default function Auth() {
                 />
               </div>
             )}
+            {notice ? <p className="text-sm text-[#6bb38b]">{notice}</p> : null}
             {error ? <p className="text-sm text-[#b9586b]">{error}</p> : null}
             <button
               type="submit"
               disabled={loading}
               className="w-full rounded-full bg-[#3d3854] px-4 py-3 text-sm font-semibold text-white"
             >
-              {loading ? "Working..." : mode === "signup" ? "Create account" : "Log in"}
+              {loading
+                ? "Working..."
+                : mode === "signup"
+                  ? "Create account"
+                  : mode === "forgot"
+                    ? "Send reset email"
+                    : "Log in"}
             </button>
           </form>
 

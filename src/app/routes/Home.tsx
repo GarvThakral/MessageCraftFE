@@ -18,6 +18,7 @@ import {
   createDodoCheckoutLink,
   fetchConversations,
   fetchMessageCraft,
+  resendVerification,
 } from "../lib/api";
 import { buildSummary } from "../lib/conversation";
 import { checkFeatureAccess, getToneLimit, TIERS } from "../lib/tiers";
@@ -152,6 +153,9 @@ export default function Home() {
   const [presetName, setPresetName] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<string>("");
   const [error, setError] = useState("");
+  const [verificationNotice, setVerificationNotice] = useState("");
+  const [verificationError, setVerificationError] = useState("");
+  const [verificationLoading, setVerificationLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<UpgradeReason | null>(null);
   const [billingCycle] = useState<"weekly" | "monthly">("weekly");
@@ -451,6 +455,10 @@ export default function Home() {
       openLoginPrompt();
       return;
     }
+    if (user && user.email_verified === false) {
+      setError("Verify your email to use MessageCraft Pro.");
+      return;
+    }
 
     if (!input.trim()) {
       setError("Please enter a message.");
@@ -643,6 +651,22 @@ export default function Home() {
     doc.save("messagecraft-report.pdf");
   };
 
+  const handleResendVerification = async () => {
+    if (!isAuthenticated) return;
+    setVerificationError("");
+    setVerificationNotice("");
+    setVerificationLoading(true);
+    try {
+      await resendVerification();
+      setVerificationNotice("Verification email sent. Check your inbox.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to resend verification.";
+      setVerificationError(message);
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#f3e5e8] via-[#f0eef5] to-[#e8f2f7]">
       <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-6">
@@ -659,6 +683,11 @@ export default function Home() {
           <Link to="/pricing" className="hover:text-[#3d3854]">
             Pricing
           </Link>
+          {isAuthenticated && (
+            <Link to="/account" className="hover:text-[#3d3854]">
+              Account
+            </Link>
+          )}
           {isAuthenticated ? (
             <div className="flex items-center gap-2">
               <span className="text-xs text-[#9b96aa]">Hi, {user?.username}</span>
@@ -687,6 +716,31 @@ export default function Home() {
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 pb-16">
+        {isAuthenticated && user && user.email_verified === false && (
+          <div className="rounded-2xl border border-[#f1d4df] bg-white/80 px-5 py-4 text-sm text-[#6f6a83] shadow">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-[#3d3854]">Verify your email to unlock the app.</p>
+                <p className="text-xs text-[#9b96aa]">
+                  We sent a verification link to {user.email || "your email"}.
+                </p>
+              </div>
+              <button
+                onClick={handleResendVerification}
+                disabled={verificationLoading}
+                className="rounded-full border border-[#e5e7eb] px-4 py-2 text-xs font-semibold text-[#7d7890]"
+              >
+                {verificationLoading ? "Sending..." : "Resend email"}
+              </button>
+            </div>
+            {verificationNotice ? (
+              <p className="mt-2 text-xs text-[#6bb38b]">{verificationNotice}</p>
+            ) : null}
+            {verificationError ? (
+              <p className="mt-2 text-xs text-[#b9586b]">{verificationError}</p>
+            ) : null}
+          </div>
+        )}
         {isAuthenticated ? (
           <UsageBanner
             used={usage.count}

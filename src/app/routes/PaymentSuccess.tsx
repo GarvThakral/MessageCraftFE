@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { fetchTierStatus } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
 
 export default function PaymentSuccess() {
   const { user, isAuthenticated, refresh } = useAuth();
   const [status, setStatus] = useState("Finalizing your upgrade...");
+  const [expiryNote, setExpiryNote] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -14,6 +16,16 @@ export default function PaymentSuccess() {
       if (cancelled) return;
       if (refreshed) {
         setStatus(`You're now on ${refreshed.tier}.`);
+        try {
+          const tierStatus = await fetchTierStatus();
+          if (tierStatus.tier_expires_at) {
+            setExpiryNote(
+              `Access expires on ${new Date(tierStatus.tier_expires_at).toLocaleDateString()}.`,
+            );
+          }
+        } catch {
+          setExpiryNote("");
+        }
       } else {
         setStatus("Sign in to see your upgraded plan.");
       }
@@ -38,6 +50,7 @@ export default function PaymentSuccess() {
             Signed in as {user.username}. Current tier: {user.tier}.
           </p>
         )}
+        {expiryNote ? <p className="mt-2 text-xs text-[#9b96aa]">{expiryNote}</p> : null}
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link
             to="/"

@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Check, Sparkles, User, Users, Briefcase } from "lucide-react";
 
-import { createDodoCheckoutLink, updateAccountTier } from "../lib/api";
-import { readTier, writeTier } from "../lib/storage";
+import { createDodoCheckoutLink } from "../lib/api";
+import { readTier } from "../lib/storage";
 import { useAuth } from "../hooks/useAuth";
 
 const PRICING = {
@@ -17,7 +17,6 @@ const FEATURES = {
     "1 translation per day",
     "3 tone variations",
     "Basic tone analysis",
-    "Watermark on output",
   ],
   STARTER: [
     "25 translations per week",
@@ -42,7 +41,7 @@ const FEATURES = {
 const FAQS = [
   {
     q: "Can I cancel anytime?",
-    a: "Yes. Payments are disabled for now, so you can switch tiers anytime.",
+    a: "Yes. One-time purchases expire after 30 days, so you can renew anytime.",
   },
   {
     q: "Do unused translations roll over?",
@@ -50,7 +49,7 @@ const FAQS = [
   },
   {
     q: "What payment methods are supported?",
-    a: "Payments are coming soon. For now, select your tier in the app.",
+    a: "Dodo checkout supports cards and local payment methods.",
   },
 ];
 
@@ -58,7 +57,7 @@ export default function Pricing() {
   const [billingCycle, setBillingCycle] = useState<"weekly" | "monthly">("weekly");
   const [peopleCount, setPeopleCount] = useState(2347);
   const [currentTier, setCurrentTier] = useState(readTier());
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,25 +68,28 @@ export default function Pricing() {
   }, []);
 
   useEffect(() => {
-    setCurrentTier(readTier());
-  }, [isAuthenticated]);
+    if (isAuthenticated && user?.tier) {
+      setCurrentTier(user.tier);
+    } else {
+      setCurrentTier(readTier());
+    }
+  }, [isAuthenticated, user?.tier]);
 
   const activateTier = async (plan: "FREE" | "STARTER" | "PRO") => {
     if (!isAuthenticated) {
       navigate("/auth");
       return;
     }
+    if (plan === currentTier) {
+      return;
+    }
     try {
       if (plan === "FREE") {
-        const result = await updateAccountTier(plan);
-        const nextTier =
-          result.tier === "PRO" ? "PRO" : result.tier === "STARTER" ? "STARTER" : "FREE";
-        writeTier(nextTier);
-        setCurrentTier(nextTier);
-      } else {
-        const result = await createDodoCheckoutLink(plan);
-        window.location.href = result.checkout_url;
+        navigate("/");
+        return;
       }
+      const result = await createDodoCheckoutLink(plan);
+      window.location.href = result.checkout_url;
     } catch {
       // Keep current tier if update fails.
     }
@@ -153,15 +155,17 @@ export default function Pricing() {
             { tier: "FREE", highlight: false },
             { tier: "STARTER", highlight: false },
             { tier: "PRO", highlight: true },
-          ] as const).map(({ tier, highlight }) => (
-            <div
-              key={tier}
-              className={
-                highlight
-                  ? "rounded-3xl border-2 border-[#e77ba0] bg-white p-6 shadow-2xl"
-                  : "rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg"
-              }
-            >
+          ] as const).map(({ tier, highlight }) => {
+            const isCurrent = tier === currentTier;
+            return (
+              <div
+                key={tier}
+                className={
+                  highlight
+                    ? "rounded-3xl border-2 border-[#e77ba0] bg-white p-6 shadow-2xl"
+                    : "rounded-3xl border border-white/60 bg-white/80 p-6 shadow-lg"
+                }
+              >
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-[#3d3854]">{tier}</h2>
                 {highlight && (
@@ -185,24 +189,34 @@ export default function Pricing() {
               {tier !== "FREE" ? (
                 <button
                   onClick={() => activateTier(tier)}
+                  disabled={isCurrent}
                   className={
                     highlight
-                      ? "mt-6 w-full rounded-full bg-[#3d3854] px-4 py-3 text-sm font-semibold text-white"
-                      : "mt-6 w-full rounded-full bg-[#e77ba0] px-4 py-3 text-sm font-semibold text-white"
+                      ? `mt-6 w-full rounded-full px-4 py-3 text-sm font-semibold ${
+                          isCurrent
+                            ? "bg-[#a3a0b3] text-white/80"
+                            : "bg-[#3d3854] text-white"
+                        }`
+                      : `mt-6 w-full rounded-full px-4 py-3 text-sm font-semibold ${
+                          isCurrent
+                            ? "bg-[#f0c5d5] text-white/80"
+                            : "bg-[#e77ba0] text-white"
+                        }`
                   }
                 >
-                  Activate {tier}
+                  {isCurrent ? "Current plan" : `Activate ${tier}`}
                 </button>
               ) : (
                 <Link
                   to="/"
                   className="mt-6 inline-flex w-full justify-center rounded-full border border-[#e5e7eb] px-4 py-3 text-sm text-[#7d7890]"
                 >
-                  Continue with Free
+                  {currentTier === "FREE" ? "Current plan" : "Continue with Free"}
                 </Link>
               )}
-            </div>
-          ))}
+              </div>
+            );
+          })}
         </section>
 
         <section className="grid gap-6 md:grid-cols-3">

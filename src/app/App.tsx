@@ -4,6 +4,9 @@ import Home from "./routes/Home";
 import Pricing from "./routes/Pricing";
 import Auth from "./routes/Auth";
 import PaymentSuccess from "./routes/PaymentSuccess";
+import Account from "./routes/Account";
+import VerifyEmail from "./routes/VerifyEmail";
+import ResetPassword from "./routes/ResetPassword";
 
 export default function App() {
   return (
@@ -13,6 +16,9 @@ export default function App() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </BrowserRouter>
   );

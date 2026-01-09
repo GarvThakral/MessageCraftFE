@@ -121,4 +121,14 @@ export interface User {
   id: string;
   username: string;
   tier: Tier;
+  email?: string | null;
+  email_verified?: boolean;
+  tier_expires_at?: string | null;
+}
+
+export interface TierStatus {
+  current_tier: Tier;
+  tier_expires_at: string | null;
+  days_remaining: number | null;
+  is_expired: boolean;
 }

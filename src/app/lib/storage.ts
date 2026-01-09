@@ -6,6 +6,7 @@ const HISTORY_KEY = "messagecraft_history";
 const PRESETS_KEY = "messagecraft_presets";
 const SESSION_KEY = "messagecraft_session_id";
 const AUTH_TOKEN_KEY = "messagecraft_auth_token";
+const REFRESH_TOKEN_KEY = "messagecraft_refresh_token";
 const USER_KEY = "messagecraft_user";
 
 function readJson<T>(key: string, fallback: T): T {
@@ -95,6 +96,21 @@ export function writeAuthToken(token: string): void {
 export function clearAuthToken(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+export function readRefreshToken(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem(REFRESH_TOKEN_KEY) || "";
+}
+
+export function writeRefreshToken(token: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+export function clearRefreshToken(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export function readUser(): User | null {

@@ -1,14 +1,20 @@
-import type { MessageCraftRequest, MessageCraftResponse, User } from "./types";
-import { readAuthToken, readSessionId, readTier } from "./storage";
+import type { MessageCraftRequest, MessageCraftResponse, TierStatus, User } from "./types";
+import { readAuthToken, readRefreshToken, readSessionId, readTier } from "./storage";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(
   /\/$/,
   "",
 );
+const FETCH_OPTIONS = { credentials: "include" as const };
+const COOKIE_AUTH = (import.meta.env.VITE_USE_COOKIE_AUTH || "").toString() === "true";
 
 function authHeaders(): Record<string, string> {
   const token = readAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function cookieHeaders(): Record<string, string> {
+  return COOKIE_AUTH ? { "X-Use-Cookie": "true" } : {};
 }
 
 export async function fetchMessageCraft(
@@ -25,6 +31,7 @@ export async function fetchMessageCraft(
       ...authHeaders(),
     },
     body: JSON.stringify(payload),
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -56,6 +63,7 @@ export async function fetchUsage(): Promise<{
       "X-User-Tier": tier,
       ...authHeaders(),
     },
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -94,6 +102,7 @@ export async function createConversationEntry(payload: {
       ...authHeaders(),
     },
     body: JSON.stringify(payload),
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -136,6 +145,7 @@ export async function fetchConversations(contact?: string): Promise<{
       "X-User-Tier": tier,
       ...authHeaders(),
     },
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -166,12 +176,14 @@ export async function fetchConversations(contact?: string): Promise<{
 
 export async function signup(payload: {
   username: string;
+  email: string;
   password: string;
-}): Promise<{ token: string; user: User }> {
+}): Promise<{ token: string; refresh_token: string; user: User }> {
   const response = await fetch(`${API_BASE_URL}/api/auth/signup`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...cookieHeaders() },
     body: JSON.stringify(payload),
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -180,17 +192,18 @@ export async function signup(payload: {
     throw new Error(message);
   }
 
-  return data as { token: string; user: User };
+  return data as { token: string; refresh_token: string; user: User };
 }
 
 export async function login(payload: {
   username: string;
   password: string;
-}): Promise<{ token: string; user: User }> {
+}): Promise<{ token: string; refresh_token: string; user: User }> {
   const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...cookieHeaders() },
     body: JSON.stringify(payload),
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -199,7 +212,7 @@ export async function login(payload: {
     throw new Error(message);
   }
 
-  return data as { token: string; user: User };
+  return data as { token: string; refresh_token: string; user: User };
 }
 
 export async function fetchMe(): Promise<User> {
@@ -207,6 +220,7 @@ export async function fetchMe(): Promise<User> {
     headers: {
       ...authHeaders(),
     },
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
@@ -220,22 +234,102 @@ export async function fetchMe(): Promise<User> {
   return data as User;
 }
 
-export async function updateAccountTier(tier: "FREE" | "STARTER" | "PRO"): Promise<{
-  tier: string;
+export async function refreshSession(refreshToken?: string): Promise<{
+  token: string;
+  refresh_token: string;
+  user: User;
 }> {
-  const response = await fetch(`${API_BASE_URL}/api/account/tier`, {
+  const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ tier }),
+    headers: { "Content-Type": "application/json", ...cookieHeaders() },
+    body: JSON.stringify({ refresh_token: refreshToken || readRefreshToken() }),
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
-  if (!response.ok || !data.tier) {
-    const message = typeof data?.detail === "string" ? data.detail : "Tier update failed";
-    throw new Error(message);
+  if (!response.ok || !data.token) {
+    const message = typeof data?.detail === "string" ? data.detail : "Session refresh failed";
+    const error = new Error(message);
+    (error as { status?: number }).status = response.status;
+    throw error;
   }
 
-  return data as { tier: string };
+  return data as { token: string; refresh_token: string; user: User };
+}
+
+export async function verifyEmail(token: string): Promise<{ verified: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/verify-email`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+    ...FETCH_OPTIONS,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.detail === "string" ? data.detail : "Verification failed";
+    throw new Error(message);
+  }
+  return data as { verified: boolean };
+}
+
+export async function resendVerification(): Promise<{ sent: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    ...FETCH_OPTIONS,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.detail === "string" ? data.detail : "Resend failed";
+    throw new Error(message);
+  }
+  return data as { sent: boolean };
+}
+
+export async function requestPasswordReset(email: string): Promise<{ sent: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+    ...FETCH_OPTIONS,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.detail === "string" ? data.detail : "Reset request failed";
+    throw new Error(message);
+  }
+  return data as { sent: boolean };
+}
+
+export async function resetPassword(payload: {
+  token: string;
+  password: string;
+}): Promise<{ reset: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    ...FETCH_OPTIONS,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.detail === "string" ? data.detail : "Reset failed";
+    throw new Error(message);
+  }
+  return data as { reset: boolean };
+}
+
+export async function fetchTierStatus(): Promise<TierStatus> {
+  const response = await fetch(`${API_BASE_URL}/api/account/tier-status`, {
+    headers: { ...authHeaders() },
+    ...FETCH_OPTIONS,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.detail === "string" ? data.detail : "Tier lookup failed";
+    throw new Error(message);
+  }
+  return data as TierStatus;
 }
 
 export async function createDodoCheckoutLink(tier: "STARTER" | "PRO"): Promise<{
@@ -245,6 +339,7 @@ export async function createDodoCheckoutLink(tier: "STARTER" | "PRO"): Promise<{
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ tier }),
+    ...FETCH_OPTIONS,
   });
 
   const data = await response.json().catch(() => ({}));
