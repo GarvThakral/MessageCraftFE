@@ -32,7 +32,7 @@ import type {
   ToneKey,
 } from "../lib/types";
 import { readPresets, writePresets } from "../lib/storage";
-import { classNames } from "../lib/utils";
+import { classNames, formatDate } from "../lib/utils";
 import { useTierState } from "../hooks/useTier";
 import UpgradeModal, { type UpgradeReason } from "../components/UpgradeModal";
 import UsageBanner from "../components/UsageBanner";
@@ -109,6 +109,12 @@ const EXAMPLE_MESSAGES = [
   "Why can't you just understand?",
 ];
 
+const BATCH_SAMPLE = [
+  "Can we move the deadline to Friday?",
+  "I felt unheard in the meeting today.",
+  "Quick reminder about tomorrow's call.",
+];
+
 const POWER_LABELS: Record<string, string> = {
   speaker_has_leverage: "You hold leverage",
   balanced: "Balanced",
@@ -158,7 +164,9 @@ export default function Home() {
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<UpgradeReason | null>(null);
-  const [billingCycle] = useState<"weekly" | "monthly">("weekly");
+  const [actionTab, setActionTab] = useState<"scenarios" | "quick" | "tactical">("scenarios");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<"STARTER" | "PRO" | null>(null);
   const [conversationEntries, setConversationEntries] = useState<ConversationEntry[]>([]);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [loginPromptOpen, setLoginPromptOpen] = useState(false);
@@ -182,7 +190,7 @@ export default function Home() {
 
   const usageNotice = useMemo(() => {
     if (tier === "FREE" && usage.count >= TIERS.FREE.weeklyLimit) {
-      return "You've used today's free translation. Upgrade to Starter for 25/week at $1.99.";
+      return "You've used today's free translation. Upgrade to Starter for $1.75/week ($6.99 billed monthly).";
     }
     if (tier === "STARTER" && usage.count >= 20) {
       return "You're a power user. Upgrade to Pro for unlimited translations.";
@@ -606,12 +614,20 @@ export default function Home() {
       setError("Please sign in to change your plan.");
       return;
     }
+    if (tier === "PRO" && plan === "STARTER") {
+      setError("You're already on Pro.");
+      return;
+    }
     try {
+      setCheckoutPlan(plan);
+      setCheckoutLoading(true);
       const result = await createDodoCheckoutLink(plan);
       window.location.href = result.checkout_url;
     } catch (err) {
       const message = err instanceof Error ? err.message : "Checkout failed.";
       setError(message);
+      setCheckoutLoading(false);
+      setCheckoutPlan(null);
     }
   };
 
@@ -682,6 +698,9 @@ export default function Home() {
         <nav className="flex items-center gap-4 text-sm text-[#7d7890]">
           <Link to="/pricing" className="hover:text-[#3d3854]">
             Pricing
+          </Link>
+          <Link to="/support" className="hover:text-[#3d3854]">
+            Support
           </Link>
           {isAuthenticated && (
             <Link to="/account" className="hover:text-[#3d3854]">
@@ -839,19 +858,32 @@ export default function Home() {
                     }
                   }}
                   readOnly={!isAuthenticated}
-                  placeholder="Paste or type your message..."
+                  placeholder={
+                    batchMode
+                      ? "Enter one message per line...\nExample:\nCan we move the deadline?\nI felt unheard in the meeting."
+                      : "Paste or type your message..."
+                  }
                   className="w-full h-36 p-4 bg-[#fafbfc] rounded-xl border border-[#e5e7eb] resize-none focus:outline-none focus:ring-2 focus:ring-[#d96a94]/30 text-[#4a4561] placeholder:text-[#b5b2c3]"
                 />
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {EXAMPLE_MESSAGES.map((example) => (
+                  {batchMode ? (
                     <button
-                      key={example}
-                      onClick={() => setInput(example)}
+                      onClick={() => setInput(BATCH_SAMPLE.join("\n"))}
                       className="text-xs text-[#5e78a8] hover:text-[#4a5f88] hover:underline"
                     >
-                      {example}
+                      Load a batch example
                     </button>
-                  ))}
+                  ) : (
+                    EXAMPLE_MESSAGES.map((example) => (
+                      <button
+                        key={example}
+                        onClick={() => setInput(example)}
+                        className="text-xs text-[#5e78a8] hover:text-[#4a5f88] hover:underline"
+                      >
+                        {example}
+                      </button>
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -1036,7 +1068,9 @@ export default function Home() {
                 )}
               >
                 <Lightbulb className="w-5 h-5" />
-                <span className="font-medium">Make it clearer</span>
+                <span className="font-medium">
+                  {batchMode ? "Batch: make it clearer" : "Make it clearer"}
+                </span>
               </button>
               <button
                 onClick={() => runMessageCraft("emotion")}
@@ -1047,7 +1081,9 @@ export default function Home() {
                 )}
               >
                 <Heart className="w-5 h-5" />
-                <span className="font-medium">Make it warmer</span>
+                <span className="font-medium">
+                  {batchMode ? "Batch: make it warmer" : "Make it warmer"}
+                </span>
               </button>
             </div>
             <p className="text-center text-xs text-[#9b96aa]">
@@ -1060,6 +1096,114 @@ export default function Home() {
           </div>
 
           <div className="space-y-6">
+            <div className="rounded-2xl bg-white/80 p-6 shadow-lg lg:sticky lg:top-6">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-[#4a4561]">Action Dock</h3>
+                <span className="text-xs text-[#9b96aa]">
+                  {response ? "Ready" : "Run a translation"}
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-[#9b96aa]">
+                Apply scenarios, tactical enhancements, or quick actions without scrolling.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {[
+                  { key: "scenarios" as const, label: "Scenarios" },
+                  { key: "quick" as const, label: "Quick actions" },
+                  { key: "tactical" as const, label: "Tactical" },
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setActionTab(tab.key)}
+                    className={classNames(
+                      "rounded-full border px-3 py-1 text-xs font-semibold",
+                      actionTab === tab.key
+                        ? "border-[#3d3854] bg-[#3d3854] text-white"
+                        : "border-[#e5e7eb] bg-white text-[#7d7890]",
+                    )}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {!response ? (
+                <p className="mt-4 text-xs text-[#b2a8c6]">
+                  Translate once to unlock actions here.
+                </p>
+              ) : (
+                <div className="mt-4">
+                  {actionTab === "tactical" && (
+                    <div className="grid gap-2">
+                      {tacticalOptions.map((option) => (
+                        <button
+                          key={option.key}
+                          onClick={() => applyTactical(option.key)}
+                          className={classNames(
+                            "rounded-full border px-4 py-2 text-left text-xs",
+                            activeTactical === option.key
+                              ? "border-[#d96a94] bg-[#ffe2eb] text-[#7a3652]"
+                              : "border-[#e5e7eb] text-[#7d7890]",
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {actionTab === "quick" &&
+                    (allowQuickActions ? (
+                      <div className="grid gap-2">
+                        {quickActionOptions.map((option) => (
+                          <button
+                            key={option.key}
+                            onClick={() => applyQuickAction(option.key)}
+                            className={classNames(
+                              "rounded-full border px-4 py-2 text-left text-xs",
+                              activeQuickAction === option.key
+                                ? "border-[#6bb3d9] bg-[#d9ebf6] text-[#35546b]"
+                                : "border-[#e5e7eb] text-[#7d7890]",
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#b2a8c6]">
+                        Upgrade to unlock quick actions.
+                      </p>
+                    ))}
+
+                  {actionTab === "scenarios" &&
+                    (allowScenarios ? (
+                      <div className="grid gap-2">
+                        {scenarioOptions.map((option) => (
+                          <button
+                            key={option.key}
+                            onClick={() => applyScenario(option.key)}
+                            className={classNames(
+                              "rounded-full border px-4 py-2 text-left text-xs",
+                              activeScenario === option.key
+                                ? "border-[#a28ad7] bg-[#ece5fb] text-[#4b3a77]"
+                                : "border-[#e5e7eb] text-[#7d7890]",
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#b2a8c6]">
+                        Upgrade to unlock one-click scenarios.
+                      </p>
+                    ))}
+                </div>
+              )}
+            </div>
+
             <div className="rounded-2xl bg-white/80 p-6 shadow-lg">
               <h3 className="text-sm font-semibold text-[#4a4561]">Context Settings</h3>
               <label className="mt-4 block text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
@@ -1102,7 +1246,8 @@ export default function Home() {
                 className="mt-2 w-full rounded-full border border-[#e5e7eb] bg-white px-4 py-2 text-sm text-[#4a4561]"
               />
               <p className="mt-2 text-xs text-[#9b96aa]">
-                Used to track tone patterns and conversation health for that person.
+                Used to track tone patterns and conversation memory. Saved entries appear on the
+                right after each translation.
               </p>
 
               {contacts.length > 0 && (
@@ -1133,6 +1278,12 @@ export default function Home() {
                   {batchMode ? "On" : "Off"}
                 </button>
               </div>
+              {batchMode && (
+                <p className="mt-2 text-xs text-[#9b96aa]">
+                  Paste one message per line in the left input, then click Translate to process all
+                  lines. Results appear below in Batch Results.
+                </p>
+              )}
               {!allowBatchMode && (
                 <p className="mt-2 text-xs text-[#b2a8c6]">
                   Batch mode is a Pro feature.
@@ -1180,15 +1331,50 @@ export default function Home() {
             </div>
 
             <div className="rounded-2xl bg-white/80 p-6 shadow-lg">
-              <h3 className="text-sm font-semibold text-[#4a4561]">Conversation Health</h3>
+              <h3 className="text-sm font-semibold text-[#4a4561]">Conversation Memory</h3>
               <p className="mt-1 text-xs text-[#9b96aa]">
                 {allowConversation
-                  ? conversationSummary.suggestion
+                  ? "Saved messages for this contact appear here after each translation."
                   : "Upgrade to unlock conversation memory."}
               </p>
+              {allowConversation ? (
+                filteredEntries.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    {filteredEntries.slice(0, 3).map((entry) => {
+                      const toneLabel =
+                        toneOptions.find((tone) => tone.key === entry.tone)?.label ||
+                        "Professional / Formal";
+                      return (
+                        <div
+                          key={entry.id}
+                          className="rounded-xl border border-[#e5e7eb] bg-white px-3 py-2"
+                        >
+                          <div className="flex items-center justify-between text-xs text-[#9b96aa]">
+                            <span>{formatDate(new Date(entry.timestamp).toISOString())}</span>
+                            <span>{toneLabel}</span>
+                          </div>
+                          <p className="mt-1 text-xs text-[#7d7890]">
+                            Clarity {entry.clarityScore}/100
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-[#9b96aa]">
+                    No saved messages yet. Run a translation to start memory for this contact.
+                  </p>
+                )
+              ) : null}
               {allowConversation && filteredEntries.length > 0 ? (
                 <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs text-[#7d7890]">
+                  <h4 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#9b96aa]">
+                    Conversation health
+                  </h4>
+                  <p className="mt-1 text-xs text-[#9b96aa]">
+                    {conversationSummary.suggestion}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between text-xs text-[#7d7890]">
                     <span>Health score</span>
                     <span>{conversationSummary.healthScore}/100</span>
                   </div>
@@ -1261,6 +1447,9 @@ export default function Home() {
         {batchResults.length > 0 && (
           <section className="rounded-2xl bg-white/80 p-6 shadow-lg">
             <h3 className="text-lg font-semibold text-[#4a4561]">Batch Results</h3>
+            <p className="mt-1 text-xs text-[#9b96aa]">
+              Each line is processed separately when batch mode is on.
+            </p>
             <div className="mt-4 space-y-4">
               {batchResults.map((result, index) => (
                 <div key={index} className="rounded-xl border border-[#e5e7eb] p-4">
@@ -1538,11 +1727,26 @@ export default function Home() {
         </div>
       )}
 
+      {checkoutLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#e77ba0] border-t-transparent" />
+            <p className="mt-4 text-sm font-semibold text-[#3d3854]">
+              Preparing secure checkout
+            </p>
+            {checkoutPlan && (
+              <p className="mt-1 text-xs text-[#9b96aa]">
+                Plan: {checkoutPlan === "STARTER" ? "Starter" : "Pro"}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       <UpgradeModal
         open={upgradeReason !== null}
         reason={upgradeReason || "feature_locked"}
         currentTier={tier}
-        billingCycle={billingCycle}
         onClose={() => setUpgradeReason(null)}
         onSelectPlan={handlePlanSelect}
       />

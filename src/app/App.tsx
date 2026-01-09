@@ -7,6 +7,7 @@ import PaymentSuccess from "./routes/PaymentSuccess";
 import Account from "./routes/Account";
 import VerifyEmail from "./routes/VerifyEmail";
 import ResetPassword from "./routes/ResetPassword";
+import Support from "./routes/Support";
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/account" element={<Account />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/support" element={<Support />} />
       </Routes>
     </BrowserRouter>
   );

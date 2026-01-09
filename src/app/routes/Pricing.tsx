@@ -8,8 +8,8 @@ import { useAuth } from "../hooks/useAuth";
 
 const PRICING = {
   FREE: { weekly: 0, monthly: 0 },
-  STARTER: { weekly: 1.99, monthly: 6.99 },
-  PRO: { weekly: 4.99, monthly: 16.99 },
+  STARTER: { weekly: 1.75, monthly: 6.99 },
+  PRO: { weekly: 4, monthly: 16 },
 };
 
 const FEATURES = {
@@ -31,10 +31,8 @@ const FEATURES = {
     "Unlimited translations",
     "Custom tone presets",
     "Batch mode",
-    "Advanced insights",
     "One-click scenarios",
     "Reports + dashboards",
-    "Chrome extension access",
   ],
 };
 
@@ -54,9 +52,10 @@ const FAQS = [
 ];
 
 export default function Pricing() {
-  const [billingCycle, setBillingCycle] = useState<"weekly" | "monthly">("weekly");
   const [peopleCount, setPeopleCount] = useState(2347);
   const [currentTier, setCurrentTier] = useState(readTier());
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutPlan, setCheckoutPlan] = useState<"STARTER" | "PRO" | null>(null);
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
 
@@ -75,6 +74,10 @@ export default function Pricing() {
     }
   }, [isAuthenticated, user?.tier]);
 
+  const starterPreviewDisabled = currentTier !== "FREE";
+  const starterPreviewLabel =
+    currentTier === "STARTER" ? "Current plan" : currentTier === "PRO" ? "You're on Pro" : "Activate Starter";
+
   const activateTier = async (plan: "FREE" | "STARTER" | "PRO") => {
     if (!isAuthenticated) {
       navigate("/auth");
@@ -83,19 +86,24 @@ export default function Pricing() {
     if (plan === currentTier) {
       return;
     }
+    if (currentTier === "PRO" && plan === "STARTER") {
+      return;
+    }
     try {
       if (plan === "FREE") {
         navigate("/");
         return;
       }
+      setCheckoutPlan(plan);
+      setCheckoutLoading(true);
       const result = await createDodoCheckoutLink(plan);
       window.location.href = result.checkout_url;
     } catch {
       // Keep current tier if update fails.
+      setCheckoutLoading(false);
+      setCheckoutPlan(null);
     }
   };
-
-  const cycleLabel = billingCycle === "weekly" ? "week" : "month";
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#f3e5e8] via-[#f0eef5] to-[#e8f2f7]">
@@ -104,9 +112,14 @@ export default function Pricing() {
           <Sparkles className="h-5 w-5 text-[#d96a94]" />
           <span className="text-sm font-semibold">MessageCraft Pro</span>
         </Link>
-        <Link to="/" className="text-sm text-[#7d7890]">
-          Back to app
-        </Link>
+        <div className="flex items-center gap-4 text-sm text-[#7d7890]">
+          <Link to="/support" className="hover:text-[#3d3854]">
+            Support
+          </Link>
+          <Link to="/" className="hover:text-[#3d3854]">
+            Back to app
+          </Link>
+        </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-6 pb-16">
@@ -118,30 +131,8 @@ export default function Pricing() {
             Choose Your Communication Superpower
           </h1>
           <p className="mt-4 text-lg text-[#7d7890]">
-            Weekly flexibility or monthly savings. Save 15% on monthly plans.
+            Weekly pricing that is billed monthly for simplicity.
           </p>
-          <div className="mt-6 inline-flex items-center gap-3 rounded-full bg-white/80 px-4 py-2 text-xs text-[#7d7890]">
-            <button
-              onClick={() => setBillingCycle("weekly")}
-              className={
-                billingCycle === "weekly"
-                  ? "rounded-full bg-[#3d3854] px-4 py-2 text-white"
-                  : "px-4 py-2"
-              }
-            >
-              Weekly
-            </button>
-            <button
-              onClick={() => setBillingCycle("monthly")}
-              className={
-                billingCycle === "monthly"
-                  ? "rounded-full bg-[#3d3854] px-4 py-2 text-white"
-                  : "px-4 py-2"
-              }
-            >
-              Monthly (save 15%)
-            </button>
-          </div>
           <p className="mt-4 text-xs text-[#9b96aa]">Current plan: {currentTier}</p>
           {!isAuthenticated && (
             <p className="mt-2 text-xs text-[#b2a8c6]">
@@ -157,6 +148,7 @@ export default function Pricing() {
             { tier: "PRO", highlight: true },
           ] as const).map(({ tier, highlight }) => {
             const isCurrent = tier === currentTier;
+            const isDowngrade = currentTier === "PRO" && tier === "STARTER";
             return (
               <div
                 key={tier}
@@ -174,10 +166,19 @@ export default function Pricing() {
                   </span>
                 )}
               </div>
-              <p className="mt-4 text-3xl font-semibold text-[#3d3854]">
-                ${PRICING[tier][billingCycle].toFixed(2)}
-                <span className="text-sm font-normal text-[#7d7890]">/{cycleLabel}</span>
-              </p>
+              {tier === "FREE" ? (
+                <p className="mt-4 text-3xl font-semibold text-[#3d3854]">Free</p>
+              ) : (
+                <div className="mt-4">
+                  <p className="text-3xl font-semibold text-[#3d3854]">
+                    ${PRICING[tier].weekly.toFixed(2)}
+                    <span className="text-sm font-normal text-[#7d7890]">/week</span>
+                  </p>
+                  <p className="text-xs text-[#9b96aa]">
+                    ${PRICING[tier].monthly.toFixed(2)} billed monthly
+                  </p>
+                </div>
+              )}
               <ul className="mt-4 space-y-2 text-sm text-[#6f6a83]">
                 {FEATURES[tier].map((feature) => (
                   <li key={feature} className="flex items-center gap-2">
@@ -189,22 +190,26 @@ export default function Pricing() {
               {tier !== "FREE" ? (
                 <button
                   onClick={() => activateTier(tier)}
-                  disabled={isCurrent}
+                  disabled={isCurrent || isDowngrade}
                   className={
                     highlight
                       ? `mt-6 w-full rounded-full px-4 py-3 text-sm font-semibold ${
-                          isCurrent
+                          isCurrent || isDowngrade
                             ? "bg-[#a3a0b3] text-white/80"
                             : "bg-[#3d3854] text-white"
                         }`
                       : `mt-6 w-full rounded-full px-4 py-3 text-sm font-semibold ${
-                          isCurrent
+                          isCurrent || isDowngrade
                             ? "bg-[#f0c5d5] text-white/80"
                             : "bg-[#e77ba0] text-white"
                         }`
                   }
                 >
-                  {isCurrent ? "Current plan" : `Activate ${tier}`}
+                  {isCurrent
+                    ? "Current plan"
+                    : isDowngrade
+                      ? "Included in Pro"
+                      : `Activate ${tier}`}
                 </button>
               ) : (
                 <Link
@@ -275,12 +280,31 @@ export default function Pricing() {
           </p>
           <button
             onClick={() => activateTier("STARTER")}
-            className="mt-6 rounded-full bg-[#e77ba0] px-6 py-3 text-sm font-semibold text-white"
+            disabled={starterPreviewDisabled}
+            className={`mt-6 rounded-full px-6 py-3 text-sm font-semibold ${
+              starterPreviewDisabled ? "cursor-not-allowed bg-[#f0c5d5] text-white/80" : "bg-[#e77ba0] text-white"
+            }`}
           >
-            Activate Starter
+            {starterPreviewLabel}
           </button>
         </section>
       </main>
+
+      {checkoutLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 text-center shadow-2xl">
+            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-[#e77ba0] border-t-transparent" />
+            <p className="mt-4 text-sm font-semibold text-[#3d3854]">
+              Preparing secure checkout
+            </p>
+            {checkoutPlan && (
+              <p className="mt-1 text-xs text-[#9b96aa]">
+                Plan: {checkoutPlan === "STARTER" ? "Starter" : "Pro"}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

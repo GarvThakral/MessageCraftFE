@@ -1,8 +1,8 @@
 import type { Tier } from "../lib/types";
 
 const PRICES = {
-  starter: { weekly: 1.99, monthly: 6.99 },
-  pro: { weekly: 4.99, monthly: 16.99 },
+  starter: { weekly: 1.75, monthly: 6.99 },
+  pro: { weekly: 4, monthly: 16 },
 };
 
 export type UpgradeReason = "limit_reached" | "feature_locked" | "result_moment";
@@ -11,7 +11,6 @@ interface UpgradeModalProps {
   open: boolean;
   reason: UpgradeReason;
   currentTier: Tier;
-  billingCycle: "weekly" | "monthly";
   onClose: () => void;
   onSelectPlan: (plan: "STARTER" | "PRO") => void;
 }
@@ -35,14 +34,20 @@ export default function UpgradeModal({
   open,
   reason,
   currentTier,
-  billingCycle,
   onClose,
   onSelectPlan,
 }: UpgradeModalProps) {
   if (!open) return null;
 
   const copy = reasonCopy[reason];
-  const cycleLabel = billingCycle === "weekly" ? "week" : "month";
+  const starterCurrent = currentTier === "STARTER";
+  const proCurrent = currentTier === "PRO";
+  const starterDisabled = starterCurrent || currentTier === "PRO";
+  const starterLabel = starterCurrent
+    ? "Current plan"
+    : currentTier === "PRO"
+      ? "Included in Pro"
+      : "Activate Starter";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -69,8 +74,11 @@ export default function UpgradeModal({
               Starter
             </p>
             <p className="mt-2 text-3xl font-semibold text-[#3d3854]">
-              ${PRICES.starter[billingCycle].toFixed(2)}
-              <span className="text-sm font-normal text-[#7d7890]">/{cycleLabel}</span>
+              ${PRICES.starter.weekly.toFixed(2)}
+              <span className="text-sm font-normal text-[#7d7890]">/week</span>
+            </p>
+            <p className="text-xs text-[#9b96aa]">
+              ${PRICES.starter.monthly.toFixed(2)} billed monthly
             </p>
             <ul className="mt-4 space-y-2 text-sm text-[#6f6a83]">
               <li>25 translations per week</li>
@@ -80,9 +88,14 @@ export default function UpgradeModal({
             </ul>
             <button
               onClick={() => onSelectPlan("STARTER")}
-              className="mt-6 w-full rounded-full bg-[#e77ba0] px-5 py-3 text-sm font-semibold text-white shadow-lg"
+              disabled={starterDisabled}
+              className={`mt-6 w-full rounded-full px-5 py-3 text-sm font-semibold shadow-lg ${
+                starterDisabled
+                  ? "cursor-not-allowed bg-[#f0c5d5] text-white/80"
+                  : "bg-[#e77ba0] text-white"
+              }`}
             >
-              Activate Starter
+              {starterLabel}
             </button>
           </div>
 
@@ -96,20 +109,26 @@ export default function UpgradeModal({
               </span>
             </div>
             <p className="mt-2 text-3xl font-semibold text-[#3d3854]">
-              ${PRICES.pro[billingCycle].toFixed(2)}
-              <span className="text-sm font-normal text-[#7d7890]">/{cycleLabel}</span>
+              ${PRICES.pro.weekly.toFixed(2)}
+              <span className="text-sm font-normal text-[#7d7890]">/week</span>
+            </p>
+            <p className="text-xs text-[#9b96aa]">
+              ${PRICES.pro.monthly.toFixed(2)} billed monthly
             </p>
             <ul className="mt-4 space-y-2 text-sm text-[#6f6a83]">
               <li>Unlimited translations</li>
-              <li>Advanced insights + dashboards</li>
+              <li>Reports + dashboards</li>
               <li>Custom presets + batch mode</li>
               <li>Priority one-click scenarios</li>
             </ul>
             <button
               onClick={() => onSelectPlan("PRO")}
-              className="mt-6 w-full rounded-full bg-[#3d3854] px-5 py-3 text-sm font-semibold text-white shadow-lg"
+              disabled={proCurrent}
+              className={`mt-6 w-full rounded-full px-5 py-3 text-sm font-semibold shadow-lg ${
+                proCurrent ? "cursor-not-allowed bg-[#a3a0b3] text-white/80" : "bg-[#3d3854] text-white"
+              }`}
             >
-              Activate Pro
+              {proCurrent ? "Current plan" : "Activate Pro"}
             </button>
           </div>
         </div>

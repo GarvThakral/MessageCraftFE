@@ -319,6 +319,28 @@ export async function resetPassword(payload: {
   return data as { reset: boolean };
 }
 
+export async function sendSupportMessage(payload: {
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  category?: string;
+  order_id?: string;
+}): Promise<{ sent: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/api/support/contact`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    ...FETCH_OPTIONS,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = typeof data?.detail === "string" ? data.detail : "Support request failed";
+    throw new Error(message);
+  }
+  return data as { sent: boolean };
+}
+
 export async function fetchTierStatus(): Promise<TierStatus> {
   const response = await fetch(`${API_BASE_URL}/api/account/tier-status`, {
     headers: { ...authHeaders() },
