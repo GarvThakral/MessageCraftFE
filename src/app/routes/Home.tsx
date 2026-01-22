@@ -9,6 +9,11 @@ import {
   Copy,
   Lock,
   Wand2,
+  Instagram,
+  Linkedin,
+  Link2,
+  MessageSquare,
+  FileText,
 } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { jsPDF } from "jspdf";
@@ -101,6 +106,14 @@ const goalOptions = [
   "Make a request",
   "Repair trust",
   "Set boundaries",
+];
+
+const SOCIAL_LINKS = [
+  { label: "Discord", href: "https://discord.com/invite/ZZx3cBrx2", icon: MessageSquare },
+  { label: "Substack", href: "https://substack.com/@entrextlabs", icon: FileText },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/entrext/posts/?feedView=all", icon: Linkedin },
+  { label: "Instagram", href: "https://www.instagram.com/entrext.labs/", icon: Instagram },
+  { label: "Linktree", href: "https://linktr.ee/entrext.pro", icon: Link2 },
 ];
 
 const EXAMPLE_MESSAGES = [
@@ -699,6 +712,9 @@ export default function Home() {
           <Link to="/pricing" className="hover:text-[#3d3854]">
             Pricing
           </Link>
+          <Link to="/blogs" className="hover:text-[#3d3854]">
+            Blogs
+          </Link>
           <Link to="/support" className="hover:text-[#3d3854]">
             Support
           </Link>
@@ -803,6 +819,21 @@ export default function Home() {
             Transform any message into the perfect version for its context. Instant tone
             optimization, smart analysis, and real-world communication strategy.
           </p>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {SOCIAL_LINKS.map((item) => (
+              <a
+                key={item.label}
+                href={item.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-4 py-2 text-xs font-semibold text-[#3d3854] shadow-sm hover:shadow"
+              >
+                <item.icon className="h-4 w-4" />
+                {item.label}
+              </a>
+            ))}
+          </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[2fr_1fr]">

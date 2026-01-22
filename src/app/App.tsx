@@ -8,6 +8,8 @@ import Account from "./routes/Account";
 import VerifyEmail from "./routes/VerifyEmail";
 import ResetPassword from "./routes/ResetPassword";
 import Support from "./routes/Support";
+import Blogs from "./routes/Blogs";
+import BlogPost from "./routes/BlogPost";
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/support" element={<Support />} />
+        <Route path="/blogs" element={<Blogs />} />
+        <Route path="/blogs/:slug" element={<BlogPost />} />
       </Routes>
     </BrowserRouter>
   );
