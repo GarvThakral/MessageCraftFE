@@ -74,7 +74,7 @@ export default function Auth() {
       <div className="w-full max-w-4xl grid gap-8 md:grid-cols-[1.1fr_1fr]">
         <div className="rounded-3xl bg-white/80 p-10 shadow-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b2a8c6]">
-            MessageCraft Pro
+            ReTone
           </p>
           <h1 className="mt-4 text-3xl font-semibold text-[#3d3854]">
             Sign in to shape every message.

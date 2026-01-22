@@ -464,7 +464,7 @@ export default function Home() {
       return;
     }
     if (user && user.email_verified === false) {
-      setError("Verify your email to use MessageCraft Pro.");
+      setError("Verify your email to use ReTone.");
       return;
     }
 
@@ -657,7 +657,7 @@ export default function Home() {
     if (!filteredEntries.length) return;
     const doc = new jsPDF();
     doc.setFontSize(16);
-    doc.text("MessageCraft Pro Report", 14, 20);
+    doc.text("ReTone Report", 14, 20);
     doc.setFontSize(11);
     doc.text(`Contact: ${contactName}`, 14, 30);
     doc.text(`Health score: ${conversationSummary.healthScore}`, 14, 38);
@@ -691,7 +691,7 @@ export default function Home() {
             <Wand2 className="h-5 w-5 text-[#d96a94]" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-[#3d3854]">MessageCraft Pro</p>
+            <p className="text-sm font-semibold text-[#3d3854]">ReTone</p>
             <p className="text-xs text-[#9b96aa]">Communication optimization</p>
           </div>
         </div>
@@ -797,7 +797,7 @@ export default function Home() {
           </div>
 
           <h1 className="text-4xl md:text-6xl font-bold text-[#3d3854] mb-4">
-            MessageCraft Pro
+            ReTone
           </h1>
           <p className="text-lg text-[#7d7890] max-w-2xl leading-relaxed">
             Transform any message into the perfect version for its context. Instant tone
@@ -920,7 +920,7 @@ export default function Home() {
                   )}
                   {tier === "FREE" && displayOutputValue && (
                     <p className="mt-4 text-xs uppercase tracking-[0.3em] text-[#d1c8e3]">
-                      Crafted with MessageCraft
+                      Crafted with ReTone
                     </p>
                   )}
                 </div>
@@ -1470,7 +1470,7 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-semibold text-[#3d3854]">
-                  MessageCraft Intelligence
+                  ReTone Intelligence
                 </h2>
                 <p className="text-sm text-[#7d7890]">
                   Context: {response.context.detected_type} ({
@@ -1705,7 +1705,7 @@ export default function Home() {
       {loginPromptOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
-            <h2 className="text-2xl font-semibold text-[#3d3854]">Sign in to unlock MessageCraft</h2>
+            <h2 className="text-2xl font-semibold text-[#3d3854]">Sign in to unlock ReTone</h2>
             <p className="mt-2 text-sm text-[#7d7890]">
               Create a free account to use your daily translation and save conversation history.
             </p>

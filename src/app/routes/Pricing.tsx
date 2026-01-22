@@ -110,7 +110,7 @@ export default function Pricing() {
       <header className="flex items-center justify-between px-6 py-6">
         <Link to="/" className="flex items-center gap-2 text-[#3d3854]">
           <Sparkles className="h-5 w-5 text-[#d96a94]" />
-          <span className="text-sm font-semibold">MessageCraft Pro</span>
+          <span className="text-sm font-semibold">ReTone</span>
         </Link>
         <div className="flex items-center gap-4 text-sm text-[#7d7890]">
           <Link to="/support" className="hover:text-[#3d3854]">
@@ -250,7 +250,7 @@ export default function Pricing() {
             </div>
             <h3 className="text-sm font-semibold text-[#3d3854]">Free is for</h3>
             <p className="mt-2 text-sm text-[#7d7890]">
-              Trying the magic and seeing what MessageCraft can do for your tone.
+              Trying the magic and seeing what ReTone can do for your tone.
             </p>
           </div>
         </section>
