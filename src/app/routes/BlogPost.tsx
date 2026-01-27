@@ -46,6 +46,12 @@ export default function BlogPost() {
         </header>
 
         <article className="rounded-3xl bg-white/90 p-8 shadow-xl space-y-4 text-sm text-[#4a4561]">
+          <img
+            src={post.image}
+            alt={post.title}
+            className="h-64 w-full rounded-2xl object-cover"
+            loading="lazy"
+          />
           {post.body.map((para, idx) => (
             <p key={idx} className="leading-relaxed">
               {para}

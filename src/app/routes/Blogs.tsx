@@ -37,6 +37,12 @@ export default function Blogs() {
         <section className="grid gap-6 lg:grid-cols-2">
           {BLOGS.map((blog) => (
             <article key={blog.slug} className="rounded-3xl bg-white/90 p-6 shadow-lg">
+              <img
+                src={blog.image}
+                alt={blog.title}
+                className="h-44 w-full rounded-2xl object-cover"
+                loading="lazy"
+              />
               <div className="flex items-center justify-between text-xs text-[#9b96aa]">
                 <span>{blog.author}</span>
                 <span>{blog.minutes} min read</span>
