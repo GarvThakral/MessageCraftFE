@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { login, requestPasswordReset, signup } from "../lib/api";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { login, requestPasswordReset, signup, getGoogleLogin, fetchMe } from "../lib/api";
 import { useAuth } from "../hooks/useAuth";
+import { writeAuthToken, writeRefreshToken } from "../lib/storage";
 
 export default function Auth() {
+  const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -14,6 +16,32 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const navigate = useNavigate();
+
+  // Handle Google redirect tokens
+  useEffect(() => {
+    const token = searchParams.get("token");
+    const refresh = searchParams.get("refresh");
+    const status = searchParams.get("status");
+    const process = async () => {
+      if (token && refresh && status === "ok") {
+        try {
+          writeAuthToken(token);
+          writeRefreshToken(refresh);
+          const me = await fetchMe();
+          signIn(token, refresh, me);
+          navigate("/");
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Google sign-in failed.";
+          setError(message);
+        } finally {
+          const url = new URL(window.location.href);
+          ["token", "refresh", "status", "provider"].forEach((key) => url.searchParams.delete(key));
+          window.history.replaceState({}, "", url.toString());
+        }
+      }
+    };
+    process();
+  }, [searchParams, signIn, navigate]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -199,6 +227,24 @@ export default function Auth() {
                     : "Log in"}
             </button>
           </form>
+
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const { url } = await getGoogleLogin();
+                  window.location.href = url;
+                } catch (err) {
+                  const message = err instanceof Error ? err.message : "Google sign-in failed.";
+                  setError(message);
+                }
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-full border border-[#e5e7eb] px-4 py-3 text-sm font-semibold text-[#3d3854] hover:bg-[#f7f5fb]"
+            >
+              Continue with Google
+            </button>
+          </div>
 
           <p className="mt-6 text-xs text-[#9b96aa]">
             By continuing you agree to keep things respectful.{" "}

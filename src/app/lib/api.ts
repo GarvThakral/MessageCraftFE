@@ -319,6 +319,18 @@ export async function resetPassword(payload: {
   return data as { reset: boolean };
 }
 
+export async function getGoogleLogin(): Promise<{ url: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/google/login`, {
+    ...FETCH_OPTIONS,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.url) {
+    const message = typeof data?.detail === "string" ? data.detail : "Google login failed";
+    throw new Error(message);
+  }
+  return data as { url: string };
+}
+
 export async function sendSupportMessage(payload: {
   name: string;
   email: string;
