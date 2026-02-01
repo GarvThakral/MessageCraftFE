@@ -61,7 +61,7 @@ export default function Support() {
               Support
             </p>
             <h1 className="mt-2 text-3xl md:text-4xl font-semibold text-[#3d3854]">
-              We are here to help
+              We got you (no judgement)
             </h1>
           </div>
           <div className="flex items-center gap-3 text-sm text-[#7d7890]">
@@ -170,23 +170,23 @@ export default function Support() {
             </button>
           </form>
 
-          <aside className="rounded-3xl bg-white/70 p-6 text-sm text-[#7d7890] shadow-lg">
-            <h2 className="text-sm font-semibold text-[#3d3854]">What happens next?</h2>
-            <ul className="mt-3 space-y-3 text-xs">
-              <li>We reply within 1-2 business days.</li>
-              <li>Billing questions: include your payment ID for faster help.</li>
-              <li>Product feedback: tell us the outcome you want.</li>
-            </ul>
-            <div className="mt-6 rounded-2xl bg-[#f8f4fb] p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b2a8c6]">
-                Quick fixes
-              </p>
-              <p className="mt-2 text-xs">
-                For login or verification issues, try signing out and signing back in after checking
-                your inbox.
-              </p>
-            </div>
-          </aside>
+            <aside className="rounded-3xl bg-white/70 p-6 text-sm text-[#7d7890] shadow-lg">
+              <h2 className="text-sm font-semibold text-[#3d3854]">What happens next?</h2>
+              <ul className="mt-3 space-y-3 text-xs">
+                <li>We reply within 1-2 business days.</li>
+                <li>Billing: include your payment ID for faster help.</li>
+                <li>Bug report: paste the exact error text if you can.</li>
+              </ul>
+              <div className="mt-6 rounded-2xl bg-[#f8f4fb] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b2a8c6]">
+                  Quick fixes
+                </p>
+                <p className="mt-2 text-xs">
+                  For login or verification issues, try signing out and signing back in after checking
+                  your inbox (and spam/promotions).
+                </p>
+              </div>
+            </aside>
         </div>
       </div>
     </div>

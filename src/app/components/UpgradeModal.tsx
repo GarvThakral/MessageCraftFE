@@ -17,16 +17,16 @@ interface UpgradeModalProps {
 
 const reasonCopy: Record<UpgradeReason, { title: string; description: string }> = {
   limit_reached: {
-    title: "Upgrade to keep translating",
-    description: "You have hit your limit. Unlock more translations instantly.",
+    title: "Upgrade to keep fixing the vibe",
+    description: "You hit your limit. Unlock more vibe-fixes instantly.",
   },
   feature_locked: {
     title: "This feature is in a paid plan",
-    description: "Upgrade to unlock strategic insights, scenarios, and advanced tools.",
+    description: "Upgrade to unlock extra vibes, scenarios, and the good stuff.",
   },
   result_moment: {
-    title: "You are getting sharper at communication",
-    description: "Unlock unlimited translations and advanced analysis with Pro.",
+    title: "You're getting better at hard conversations",
+    description: "Unlock unlimited vibe-fixes and advanced analysis with Pro.",
   },
 };
 
@@ -81,10 +81,10 @@ export default function UpgradeModal({
               ${PRICES.starter.monthly.toFixed(2)} billed monthly
             </p>
             <ul className="mt-4 space-y-2 text-sm text-[#6f6a83]">
-              <li>25 translations per week</li>
-              <li>All 5 tone variations</li>
+              <li>25 vibe-fixes per week</li>
+              <li>All 5 texting vibes</li>
               <li>Full analysis + red flags</li>
-              <li>Conversation memory (5 contacts)</li>
+              <li>Conversation memory (5 people)</li>
             </ul>
             <button
               onClick={() => onSelectPlan("STARTER")}
@@ -116,7 +116,7 @@ export default function UpgradeModal({
               ${PRICES.pro.monthly.toFixed(2)} billed monthly
             </p>
             <ul className="mt-4 space-y-2 text-sm text-[#6f6a83]">
-              <li>Unlimited translations</li>
+              <li>Unlimited vibe-fixes</li>
               <li>Reports + dashboards</li>
               <li>Custom presets + batch mode</li>
               <li>Priority one-click scenarios</li>

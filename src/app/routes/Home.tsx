@@ -46,28 +46,28 @@ import { useAuth } from "../hooks/useAuth";
 const toneOptions: Array<{ key: ToneKey; label: string; description: string }> = [
   {
     key: "professional_formal",
-    label: "Professional / Formal",
-    description: "Crisp, respectful, business-ready clarity.",
+    label: "Sincere (no cringe)",
+    description: "Respectful, clear, and mature. Great for apologies and tough talks.",
   },
   {
     key: "empathetic_warm",
-    label: "Empathetic / Warm",
-    description: "Validating and emotionally attuned.",
+    label: "Soft & Sweet",
+    description: "Warm, validating, and emotionally aware (without sounding fake).",
   },
   {
     key: "direct_assertive",
-    label: "Direct / Assertive",
-    description: "Clear boundaries with confident intent.",
+    label: "Direct (with boundaries)",
+    description: "Clear, firm, and confident. For when you need space or a reset.",
   },
   {
     key: "diplomatic_tactful",
-    label: "Diplomatic / Tactful",
-    description: "Balanced, cooperative, and face-saving.",
+    label: "Peacekeeper",
+    description: "De-escalate the fight, save face, and move toward a solution.",
   },
   {
     key: "casual_friendly",
-    label: "Casual / Friendly",
-    description: "Relaxed and easy to read.",
+    label: "Cute & Casual",
+    description: "Texting vibe. Short, playful, and easy to reply to.",
   },
 ];
 
@@ -92,20 +92,20 @@ const scenarioOptions: Array<{ key: ScenarioKey; label: string }> = [
 ];
 
 const quickActionOptions: Array<{ key: QuickActionKey; label: string }> = [
-  { key: "condense", label: "Too long -> auto-condense" },
-  { key: "expand", label: "Too short -> expand with warmth" },
-  { key: "cool_down", label: "Seems angry -> cool down" },
-  { key: "add_assertiveness", label: "Too passive -> add assertiveness" },
+  { key: "condense", label: "Too long -> make it sendable" },
+  { key: "expand", label: "Too short -> add warmth" },
+  { key: "cool_down", label: "Too angry -> chill it down" },
+  { key: "add_assertiveness", label: "Too soft -> add boundaries" },
 ];
 
 const audienceOptions = ["Neutral", "Gen Z", "Millennial", "Boomer"];
 
 const goalOptions = [
-  "De-escalate tension",
-  "Clarify expectations",
-  "Make a request",
-  "Repair trust",
-  "Set boundaries",
+  "Stop the fight (de-escalate)",
+  "Say sorry (properly)",
+  "Make up + move forward",
+  "Ask for what you need",
+  "Set boundaries (without sounding cold)",
 ];
 
 const SOCIAL_LINKS = [
@@ -117,15 +117,16 @@ const SOCIAL_LINKS = [
 ];
 
 const EXAMPLE_MESSAGES = [
-  "You never listen to me!",
-  "I don't see what the big deal is.",
-  "Why can't you just understand?",
+  "K.",
+  "You always do this.",
+  "I'm not fighting, I'm just tired.",
+  "I feel like you don't get me at all.",
 ];
 
 const BATCH_SAMPLE = [
-  "Can we move the deadline to Friday?",
-  "I felt unheard in the meeting today.",
-  "Quick reminder about tomorrow's call.",
+  "I’m sorry. I messed up.",
+  "I need 20 minutes to cool off, then we talk.",
+  "I hear you. Tell me what you need from me right now.",
 ];
 
 const POWER_LABELS: Record<string, string> = {
@@ -137,15 +138,50 @@ const POWER_LABELS: Record<string, string> = {
 const DEMO_EXAMPLES = [
   {
     input: "I hate you, this is exhausting.",
-    output: "I'm really upset right now. Can we pause and talk when I'm calmer?",
+    output: "I’m really upset right now. Can we take a quick pause and talk when I’m calmer?",
   },
   {
     input: "You never listen to me.",
-    output: "I feel unheard lately. Can we slow down and really talk this through?",
+    output: "I feel unheard lately. Can we slow down and actually talk this through?",
   },
   {
     input: "Stop being so dramatic.",
     output: "I want to understand you, but I need us to keep this calm.",
+  },
+];
+
+const HOME_FAQS: Array<{ q: string; a: string }> = [
+  {
+    q: "Is this basically an apology-text generator?",
+    a: "Yep - but not the fake kind. ReTone helps you sound like you (just calmer, clearer, and more caring).",
+  },
+  {
+    q: "Will this make my girlfriend stop being upset?",
+    a: "It helps you say the right thing at the right volume. You still have to mean it - and do the follow-through.",
+  },
+  {
+    q: "Is this for couples only?",
+    a: "Couples are the main vibe, but it also works for friends, family, roommates, and anyone you don’t want to fight with.",
+  },
+  {
+    q: "Do you read my DMs / chats?",
+    a: "No - you paste what you want to rewrite. Don’t paste anything you wouldn’t want stored or screenshotted.",
+  },
+  {
+    q: "Can I use this to manipulate someone?",
+    a: "Please don’t. ReTone is for de-escalation, honesty, and boundaries - not gaslighting, lying, or pressure tactics.",
+  },
+  {
+    q: "What if the situation is serious (abuse, threats, self-harm)?",
+    a: "This app isn’t a substitute for real help. If anyone is in danger, contact local emergency services or a trusted person immediately.",
+  },
+  {
+    q: "What should I paste?",
+    a: "Paste your draft or the message you’re replying to. Add 1 line of context like: “we fought about plans” or “she feels ignored.”",
+  },
+  {
+    q: "What tone should I choose?",
+    a: "Start with Sincere (no cringe). If the fight is hot, pick Peacekeeper. If you need space, pick Direct (with boundaries).",
   },
 ];
 
@@ -203,10 +239,10 @@ export default function Home() {
 
   const usageNotice = useMemo(() => {
     if (tier === "FREE" && usage.count >= TIERS.FREE.weeklyLimit) {
-      return "You've used today's free translation. Upgrade to Starter for $1.75/week ($6.99 billed monthly).";
+      return "You used today’s free vibe-fix. Upgrade to Starter for $1.75/week ($6.99 billed monthly).";
     }
     if (tier === "STARTER" && usage.count >= 20) {
-      return "You're a power user. Upgrade to Pro for unlimited translations.";
+      return "You’re in your main-character era. Upgrade to Pro for unlimited rewrites.";
     }
     return "";
   }, [tier, usage.count]);
@@ -705,7 +741,7 @@ export default function Home() {
           </div>
           <div>
             <p className="text-sm font-semibold text-[#3d3854]">ReTone</p>
-            <p className="text-xs text-[#9b96aa]">Communication optimization</p>
+            <p className="text-xs text-[#9b96aa]">Couples fight fixer</p>
           </div>
         </div>
         <nav className="flex items-center gap-4 text-sm text-[#7d7890]">
@@ -788,7 +824,7 @@ export default function Home() {
         ) : (
           <div className="rounded-2xl bg-white/70 px-5 py-3 text-sm text-[#6f6a83] shadow">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <span>Sign in to unlock your daily free translation.</span>
+              <span>Sign in to unlock your daily free vibe-fix.</span>
               <Link
                 to="/auth"
                 className="rounded-full bg-[#3d3854] px-4 py-2 text-xs font-semibold text-white"
@@ -813,11 +849,11 @@ export default function Home() {
           </div>
 
           <h1 className="text-4xl md:text-6xl font-bold text-[#3d3854] mb-4">
-            ReTone
+            Make Your Girlfriend Happy Forever
           </h1>
           <p className="text-lg text-[#7d7890] max-w-2xl leading-relaxed">
-            Transform any message into the perfect version for its context. Instant tone
-            optimization, smart analysis, and real-world communication strategy.
+            Drop the office-speak and fix the vibe fast. ReTone rewrites your texts so fights cool
+            off, apologies land, and your girlfriend isn’t upset anymore.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -840,7 +876,7 @@ export default function Home() {
           <div className="space-y-6">
             <div className="w-full bg-white/60 backdrop-blur-sm rounded-2xl p-8 shadow-lg">
               <div className="flex justify-between items-center mb-4">
-                <span className="text-sm text-[#9b96aa] font-medium">Tone Meter</span>
+                <span className="text-sm text-[#9b96aa] font-medium">Vibe Meter</span>
                 <span className="text-sm text-[#9b96aa] font-medium">Neutral</span>
               </div>
               <div className="relative mb-4">
@@ -891,7 +927,7 @@ export default function Home() {
                   readOnly={!isAuthenticated}
                   placeholder={
                     batchMode
-                      ? "Enter one message per line...\nExample:\nCan we move the deadline?\nI felt unheard in the meeting."
+                      ? "Enter one message per line...\nExample:\nI'm sorry I snapped.\nI need 20 mins to cool off.\nCan we talk tonight?"
                       : "Paste or type your message..."
                   }
                   className="w-full h-36 p-4 bg-[#fafbfc] rounded-xl border border-[#e5e7eb] resize-none focus:outline-none focus:ring-2 focus:ring-[#d96a94]/30 text-[#4a4561] placeholder:text-[#b5b2c3]"
@@ -922,7 +958,7 @@ export default function Home() {
                 <div className="flex items-center justify-between gap-2 mb-4">
                   <div className="flex items-center gap-2">
                     <span className="text-2xl">✨</span>
-                    <h2 className="text-lg font-semibold text-[#4a4561]">Optimized Output</h2>
+                    <h2 className="text-lg font-semibold text-[#4a4561]">Ready-to-Send Text</h2>
                   </div>
                   {allowClipboard && (
                     <button
@@ -1100,7 +1136,7 @@ export default function Home() {
               >
                 <Lightbulb className="w-5 h-5" />
                 <span className="font-medium">
-                  {batchMode ? "Batch: make it clearer" : "Make it clearer"}
+                  {batchMode ? "Batch: calm & clear" : "Calm & clear"}
                 </span>
               </button>
               <button
@@ -1113,12 +1149,12 @@ export default function Home() {
               >
                 <Heart className="w-5 h-5" />
                 <span className="font-medium">
-                  {batchMode ? "Batch: make it warmer" : "Make it warmer"}
+                  {batchMode ? "Batch: soft & sweet" : "Soft & sweet"}
                 </span>
               </button>
             </div>
             <p className="text-center text-xs text-[#9b96aa]">
-              Clear = direct, structured. Warm = empathetic, softer tone.
+              Calm & clear = direct and structured. Soft & sweet = empathetic and gentle.
             </p>
             {isLoading ? (
               <p className="text-center text-sm text-[#7d7890]">Crafting your response...</p>
@@ -1131,7 +1167,7 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-[#4a4561]">Action Dock</h3>
                 <span className="text-xs text-[#9b96aa]">
-                  {response ? "Ready" : "Run a translation"}
+                  {response ? "Ready" : "Run a rewrite"}
                 </span>
               </div>
               <p className="mt-1 text-xs text-[#9b96aa]">
@@ -1273,12 +1309,12 @@ export default function Home() {
               <input
                 value={contactName}
                 onChange={(event) => setContactName(event.target.value)}
-                placeholder="Partner, manager, client..."
+                placeholder="Partner, bestie, family..."
                 className="mt-2 w-full rounded-full border border-[#e5e7eb] bg-white px-4 py-2 text-sm text-[#4a4561]"
               />
               <p className="mt-2 text-xs text-[#9b96aa]">
                 Used to track tone patterns and conversation memory. Saved entries appear on the
-                right after each translation.
+                right after each rewrite.
               </p>
 
               {contacts.length > 0 && (
@@ -1365,7 +1401,7 @@ export default function Home() {
               <h3 className="text-sm font-semibold text-[#4a4561]">Conversation Memory</h3>
               <p className="mt-1 text-xs text-[#9b96aa]">
                 {allowConversation
-                  ? "Saved messages for this contact appear here after each translation."
+                  ? "Saved messages for this contact appear here after each rewrite."
                   : "Upgrade to unlock conversation memory."}
               </p>
               {allowConversation ? (
@@ -1374,7 +1410,7 @@ export default function Home() {
                     {filteredEntries.slice(0, 3).map((entry) => {
                       const toneLabel =
                         toneOptions.find((tone) => tone.key === entry.tone)?.label ||
-                        "Professional / Formal";
+                        "Sincere (no cringe)";
                       return (
                         <div
                           key={entry.id}
@@ -1393,7 +1429,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <p className="mt-3 text-xs text-[#9b96aa]">
-                    No saved messages yet. Run a translation to start memory for this contact.
+                    No saved messages yet. Run a rewrite to start memory for this contact.
                   </p>
                 )
               ) : null}
@@ -1486,7 +1522,7 @@ export default function Home() {
                 <div key={index} className="rounded-xl border border-[#e5e7eb] p-4">
                   <p className="text-xs font-semibold text-[#9b96aa]">Original</p>
                   <p className="text-sm text-[#4a4561]">{result.input}</p>
-                  <p className="mt-2 text-xs font-semibold text-[#9b96aa]">Professional</p>
+                  <p className="mt-2 text-xs font-semibold text-[#9b96aa]">Sincere (no cringe)</p>
                   <p className="text-sm text-[#7d7890]">
                     {result.response.tone_versions.professional_formal}
                   </p>
@@ -1501,7 +1537,7 @@ export default function Home() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-semibold text-[#3d3854]">
-                  ReTone Intelligence
+                  Vibe Check
                 </h2>
                 <p className="text-sm text-[#7d7890]">
                   Context: {response.context.detected_type} ({
@@ -1557,7 +1593,7 @@ export default function Home() {
             <div className="mt-8 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
               <div className="space-y-4">
                 <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4">
-                  <h3 className="text-sm font-semibold text-[#4a4561]">Tone analysis</h3>
+                  <h3 className="text-sm font-semibold text-[#4a4561]">Vibe breakdown</h3>
                   <p className="mt-1 text-xs text-[#7d7890]">
                     {allowFullAnalysis ? response.analysis.tone_summary : "Basic tone analysis."}
                   </p>
@@ -1687,7 +1723,7 @@ export default function Home() {
               </div>
 
               <div className="rounded-2xl border border-[#e5e7eb] bg-white p-4">
-                <h3 className="text-sm font-semibold text-[#4a4561]">One-click scenarios</h3>
+                <h3 className="text-sm font-semibold text-[#4a4561]">One-tap moves</h3>
                 {allowScenarios ? (
                   <div className="mt-3 grid gap-2">
                     {scenarioOptions.map((option) => (
@@ -1714,7 +1750,7 @@ export default function Home() {
             </div>
 
             <div className="mt-6 rounded-2xl border border-[#e5e7eb] bg-white p-4">
-              <h3 className="text-sm font-semibold text-[#4a4561]">Why this works</h3>
+              <h3 className="text-sm font-semibold text-[#4a4561]">Why this lands</h3>
               <ul className="mt-2 space-y-2 text-xs text-[#7d7890]">
                 {response.explanations.why_it_works.map((item, index) => (
                   <li key={index}>- {item}</li>
@@ -1731,6 +1767,34 @@ export default function Home() {
             </div>
           </section>
         )}
+
+        <section className="rounded-3xl bg-white/70 p-8 shadow-lg">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b2a8c6]">
+                FAQ
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-[#3d3854]">
+                For couples who are fighting (and still want peace)
+              </h2>
+              <p className="mt-2 text-sm text-[#7d7890]">
+                Quick answers. No corporate fluff.
+              </p>
+            </div>
+            <p className="text-xs text-[#9b96aa]">
+              Use respectfully. If you’re trying to win, you already lost.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {HOME_FAQS.map((item) => (
+              <div key={item.q} className="rounded-2xl bg-white/80 p-5 shadow-sm">
+                <h3 className="text-sm font-semibold text-[#3d3854]">{item.q}</h3>
+                <p className="mt-2 text-sm text-[#7d7890]">{item.a}</p>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
 
       {loginPromptOpen && (
@@ -1738,7 +1802,7 @@ export default function Home() {
           <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
             <h2 className="text-2xl font-semibold text-[#3d3854]">Sign in to unlock ReTone</h2>
             <p className="mt-2 text-sm text-[#7d7890]">
-              Create a free account to use your daily translation and save conversation history.
+              Create a free account to use your daily vibe-fix and save conversation history.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link

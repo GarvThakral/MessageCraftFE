@@ -26,8 +26,8 @@ export default function UsageBanner({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span>
           {isUnlimited
-            ? "Unlimited translations available."
-            : `${limitLabel} translations used ${period}. Resets ${formatDate(resetAt)}.`}
+            ? "Unlimited vibe-fixes available."
+            : `${limitLabel} vibe-fixes used ${period}. Resets ${formatDate(resetAt)}.`}
         </span>
         {!isUnlimited && (
           <button

@@ -14,36 +14,48 @@ const PRICING = {
 
 const FEATURES = {
   FREE: [
-    "1 translation per day",
-    "3 tone variations",
-    "Basic tone analysis",
+    "1 vibe-fix per day",
+    "3 texting vibes",
+    "Basic vibe check",
   ],
   STARTER: [
-    "25 translations per week",
-    "All 5 tone variations",
-    "Smart analysis panel",
-    "Conversation memory (5 contacts)",
-    "Red flag detection",
-    "Quick actions",
-    "Clipboard export",
+    "25 vibe-fixes per week",
+    "All 5 texting vibes",
+    "Smart vibe check panel",
+    "Conversation memory (5 people)",
+    "Red-flag scan (for risky phrasing)",
+    "Quick actions (condense, cool down, add boundaries)",
+    "Copy/export (send it instantly)",
   ],
   PRO: [
-    "Unlimited translations",
-    "Custom tone presets",
-    "Batch mode",
-    "One-click scenarios",
+    "Unlimited vibe-fixes",
+    "Custom presets (your voice)",
+    "Batch mode (multiple texts at once)",
+    "One-tap scenarios (apology, boundary, repair)",
     "Reports + dashboards",
   ],
 };
 
 const FAQS = [
   {
-    q: "Can I cancel anytime?",
-    a: "Yes. One-time purchases expire after 30 days, so you can renew anytime.",
+    q: "Is this actually for couples who are fighting?",
+    a: "Yes. That’s the main vibe: apologies, de-escalation, boundaries, and making up without sounding fake.",
   },
   {
-    q: "Do unused translations roll over?",
+    q: "Do unused vibe-fixes roll over?",
     a: "No. Free resets daily; paid plans reset weekly.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. You can stop renewing anytime.",
+  },
+  {
+    q: "Will this guarantee my girlfriend won’t be upset?",
+    a: "No guarantees. It helps you say things better. You still have to mean it and follow through.",
+  },
+  {
+    q: "Is this for manipulating someone?",
+    a: "No. Don’t use it for lying, pressure tactics, or gaslighting. Use it for respect, clarity, and calm.",
   },
   {
     q: "What payment methods are supported?",
@@ -128,10 +140,10 @@ export default function Pricing() {
             Pricing
           </p>
           <h1 className="mt-3 text-4xl md:text-6xl font-bold text-[#3d3854]">
-            Choose Your Communication Superpower
+            Choose Your Peacekeeper Plan
           </h1>
           <p className="mt-4 text-lg text-[#7d7890]">
-            Weekly pricing that is billed monthly for simplicity.
+            Weekly pricing (billed monthly). Less drama, more “we’re good”.
           </p>
           <p className="mt-4 text-xs text-[#9b96aa]">Current plan: {currentTier}</p>
           {!isAuthenticated && (
@@ -231,8 +243,8 @@ export default function Pricing() {
             </div>
             <h3 className="text-sm font-semibold text-[#3d3854]">Starter is for</h3>
             <p className="mt-2 text-sm text-[#7d7890]">
-              Individuals in relationships, job seekers, or anyone needing a steady communication
-              edge.
+              Couples who fight in text and want to fix it fast: apologies that land, boundaries
+              that don’t trigger, and calm replies when it’s messy.
             </p>
           </div>
           <div className="rounded-3xl bg-white/80 p-6 shadow-lg">
@@ -241,7 +253,8 @@ export default function Pricing() {
             </div>
             <h3 className="text-sm font-semibold text-[#3d3854]">Pro is for</h3>
             <p className="mt-2 text-sm text-[#7d7890]">
-              Managers, therapists, sales teams, and anyone communicating at scale.
+              People who message a lot: long fights, long-distance, or just someone who wants
+              unlimited rewrites and the “what works with us” dashboard.
             </p>
           </div>
           <div className="rounded-3xl bg-white/80 p-6 shadow-lg">
@@ -250,7 +263,7 @@ export default function Pricing() {
             </div>
             <h3 className="text-sm font-semibold text-[#3d3854]">Free is for</h3>
             <p className="mt-2 text-sm text-[#7d7890]">
-              Trying the magic and seeing what ReTone can do for your tone.
+              Testing the vibe. One quick fix a day when you’re in the doghouse.
             </p>
           </div>
         </section>

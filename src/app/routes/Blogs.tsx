@@ -5,7 +5,7 @@ import { BLOGS } from "../data/blogs";
 
 export default function Blogs() {
   useEffect(() => {
-    document.title = "ReTone Blogs | Communication Intelligence";
+    document.title = "ReTone Blog | Couples Fight Fixes";
   }, []);
 
   return (
@@ -15,10 +15,10 @@ export default function Blogs() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#b2a8c6]">Blog</p>
             <h1 className="mt-2 text-3xl md:text-4xl font-semibold text-[#3d3854]">
-              Learn faster with ReTone
+              Text better. Fight less.
             </h1>
             <p className="mt-2 text-sm text-[#7d7890]">
-              Communication tactics, product comparisons, and ready-to-use playbooks.
+              Apology scripts, boundary texts, and calm replies for when the vibe is off.
             </p>
           </div>
           <div className="flex items-center gap-3 text-sm text-[#7d7890]">

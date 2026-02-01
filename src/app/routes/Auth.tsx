@@ -105,16 +105,16 @@ export default function Auth() {
             ReTone
           </p>
           <h1 className="mt-4 text-3xl font-semibold text-[#3d3854]">
-            Sign in to shape every message.
+            Sign in to fix the vibe faster.
           </h1>
           <p className="mt-3 text-sm text-[#7d7890]">
-            Your account stores usage limits, tone history, and conversation insights. Email
-            verification is required.
+            Save your presets, track what works with each person, and unlock more vibe-fixes.
+            Email verification is required.
           </p>
           <ul className="mt-6 space-y-3 text-sm text-[#6f6a83]">
-            <li>- Track usage limits and tier access.</li>
-            <li>- Save conversation health per contact.</li>
-            <li>- Unlock the full message intelligence stack.</li>
+            <li>- Save your "my voice" presets.</li>
+            <li>- Track conversation health per person.</li>
+            <li>- Unlock scenarios, quick actions, and more vibes.</li>
           </ul>
         </div>
 
